@@ -1,0 +1,147 @@
+name: Check Upstream Plugin Updates
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sundays at 00:00 UTC
+  workflow_dispatch:
+    inputs:
+      force_check:
+        description: 'Force check even if no changes detected'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Clone upstream repo
+        run: |
+          git clone --depth 100 https://github.com/anthropics/claude-plugins-official.git /tmp/upstream
+
+      - name: Check for relevant changes
+        id: diff
+        run: |
+          cd /tmp/upstream
+
+          # Get commits from last 7 days in relevant directories
+          COMMITS=$(git log --since="7 days ago" --oneline \
+            -- plugins/plugin-dev plugins/example-plugin README.md \
+            2>/dev/null | head -20)
+
+          if [ -n "$COMMITS" ] || [ "${{ inputs.force_check }}" = "true" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+
+            # Build summary
+            {
+              echo "summary<<EOF"
+              echo "### Recent upstream commits (last 7 days)"
+              echo ""
+              if [ -n "$COMMITS" ]; then
+                echo "$COMMITS" | while read line; do echo "- $line"; done
+              else
+                echo "- (force check requested)"
+              fi
+              echo ""
+              echo "### Key files in plugin-dev"
+              echo ""
+              ls -1 plugins/plugin-dev/skills/ 2>/dev/null | while read skill; do
+                echo "- skills/$skill"
+              done
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update sync issue
+        if: steps.diff.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `[Auto] Sync plugin-maker skill with upstream claude-plugins-official`;
+            const summary = `${{ steps.diff.outputs.summary }}`;
+
+            // Check for existing open issues
+            const { data: existingIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'upstream-sync'
+            });
+
+            if (existingIssues.length > 0) {
+              console.log(`Sync issue #${existingIssues[0].number} already exists, adding comment`);
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssues[0].number,
+                body: `## Updated upstream changes detected\n\n${summary}\n\n@copilot please re-analyze and update your PR if needed.`
+              });
+              return;
+            }
+
+            // Create new issue
+            const body = `## Upstream Changes Detected
+
+            The claude-plugins-official repository has updates that may be relevant to the plugin-maker skill.
+
+            ${summary}
+
+            ## Task for @copilot
+
+            Please analyze the upstream changes and determine if our plugin-maker skill should be updated:
+
+            1. **Clone upstream**: \`git clone https://github.com/anthropics/claude-plugins-official.git\`
+            2. **Focus on these upstream paths**:
+               - \`plugins/plugin-dev/\` - Comprehensive plugin development toolkit with 7 skills
+               - \`plugins/example-plugin/\` - Reference implementation
+            3. **Compare with our skill files**:
+               - \`SKILL.md\` - Main plugin creation instructions
+               - \`references/EXAMPLES.md\` - Plugin examples
+               - \`references/TEMPLATES.md\` - Copy-paste templates
+               - \`references/VALIDATION.md\` - Validation checklists
+               - \`references/MISTAKES.md\` - Common mistakes
+            4. **Identify gaps**: What does upstream cover that we don't?
+            5. **Propose updates**: If beneficial, create a PR updating our files
+
+            ### Guidelines
+            - **Preserve our simpler, single-skill format** - we are NOT converting to a full plugin
+            - Add new patterns/examples only if they improve the skill
+            - Update templates if upstream has better conventions
+            - Document any new hook types, MCP patterns, or component conventions
+            - No trailing spaces on any line
+            - Keep SKILL.md under 500 lines (use references/ for details)
+
+            ### Decision criteria
+            **Create a PR if:**
+            - There are new plugin features/patterns we should document
+            - Our examples are outdated compared to upstream
+            - There are new common mistakes to warn about
+            - Templates need updates for new conventions
+
+            **Close this issue if:**
+            - Upstream changes are not relevant to plugin creation guidance
+            - Our skill already covers the changes adequately
+            - Changes are too specialized (e.g., specific to one plugin type)
+
+            Please explain your decision in the PR description or closing comment.
+            `;
+
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['upstream-sync', 'copilot'],
+              assignees: ['copilot']
+            });
+
+            console.log(`Created issue #${issue.number}`);
