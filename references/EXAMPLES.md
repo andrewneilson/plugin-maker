@@ -481,3 +481,265 @@ If $ARGUMENTS specifies a count, show that many PRs. Default: 10.
 4. Files changed
 5. Review status
 ```
+
+## Plugin with Hooks (Prompt-Based)
+
+A plugin demonstrating prompt-based hooks for quality enforcement.
+
+### Directory Structure
+
+```
+quality-enforcer/
+├── .claude-plugin/
+│   └── plugin.json
+├── README.md
+└── hooks/
+    └── hooks.json
+```
+
+### Files
+
+**.claude-plugin/plugin.json**:
+```json
+{
+  "name": "quality-enforcer",
+  "version": "1.0.0",
+  "description": "Enforce quality standards with prompt-based hooks",
+  "author": {
+    "name": "Your Name",
+    "email": "you@example.com"
+  }
+}
+```
+
+**hooks/hooks.json**:
+```json
+{
+  "description": "Quality enforcement hooks using prompt-based validation",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|Create",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Validate file write safety. Check for: 1) System paths (/etc, /usr), 2) Credentials in content, 3) Path traversal attempts, 4) Sensitive file patterns (.env, id_rsa). Return 'approve' for safe operations or 'deny' with reason.",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Verify task completion before stopping. Check: 1) All tests passing, 2) Build successful, 3) Linting clean, 4) Documentation updated, 5) User questions answered. Return 'approve' if all complete, 'block' with missing items if not.",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Analyze the edit for potential issues: syntax errors, security vulnerabilities, breaking changes, performance impacts. Provide feedback if issues detected.",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**README.md**:
+```markdown
+# Quality Enforcer
+
+Enforce quality standards through prompt-based hooks.
+
+## Features
+
+- **File Safety**: Validates writes to prevent system file modifications
+- **Completeness Check**: Ensures tests, builds, and docs are complete before stopping
+- **Edit Analysis**: Reviews edits for issues after changes
+
+## Usage
+
+Hooks run automatically during Claude Code sessions.
+
+## Development
+
+```bash
+claude --plugin-dir ./quality-enforcer
+```
+```
+
+## Plugin with SessionStart Hook
+
+A plugin that loads project context at session start.
+
+### Directory Structure
+
+```
+context-loader/
+├── .claude-plugin/
+│   └── plugin.json
+├── README.md
+└── hooks/
+    ├── hooks.json
+    └── load-context.sh
+```
+
+### Files
+
+**.claude-plugin/plugin.json**:
+```json
+{
+  "name": "context-loader",
+  "version": "1.0.0",
+  "description": "Load project context at session start"
+}
+```
+
+**hooks/hooks.json**:
+```json
+{
+  "description": "Load project context when session starts",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/load-context.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**hooks/load-context.sh**:
+```bash
+#!/bin/bash
+# Load project context and set environment variables
+
+# Detect project type
+if [ -f "package.json" ]; then
+  echo "export PROJECT_TYPE=nodejs" >> "$CLAUDE_ENV_FILE"
+
+  # Detect package manager
+  if [ -f "package-lock.json" ]; then
+    echo "export PKG_MANAGER=npm" >> "$CLAUDE_ENV_FILE"
+  elif [ -f "yarn.lock" ]; then
+    echo "export PKG_MANAGER=yarn" >> "$CLAUDE_ENV_FILE"
+  fi
+elif [ -f "pom.xml" ]; then
+  echo "export PROJECT_TYPE=java" >> "$CLAUDE_ENV_FILE"
+  echo "export BUILD_TOOL=maven" >> "$CLAUDE_ENV_FILE"
+elif [ -f "Cargo.toml" ]; then
+  echo "export PROJECT_TYPE=rust" >> "$CLAUDE_ENV_FILE"
+  echo "export BUILD_TOOL=cargo" >> "$CLAUDE_ENV_FILE"
+fi
+
+# Load git branch
+BRANCH=$(git branch --show-current 2>/dev/null)
+if [ -n "$BRANCH" ]; then
+  echo "export GIT_BRANCH=$BRANCH" >> "$CLAUDE_ENV_FILE"
+fi
+
+# Success message
+echo "Project context loaded successfully"
+```
+
+## Plugin with Multiple MCP Servers
+
+A plugin integrating multiple MCP servers for database access.
+
+### Directory Structure
+
+```
+database-tools/
+├── .claude-plugin/
+│   └── plugin.json
+├── .mcp.json
+└── README.md
+```
+
+### Files
+
+**.claude-plugin/plugin.json**:
+```json
+{
+  "name": "database-tools",
+  "version": "1.0.0",
+  "description": "Database connectivity via MCP servers",
+  "author": {
+    "name": "Your Name",
+    "email": "you@example.com"
+  }
+}
+```
+
+**.mcp.json**:
+```json
+{
+  "postgres": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-postgres"],
+    "env": {
+      "POSTGRES_URL": "${DATABASE_URL}"
+    }
+  },
+  "mongodb": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-mongodb"],
+    "env": {
+      "MONGO_URL": "${MONGO_URL}"
+    }
+  },
+  "redis": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-redis"],
+    "env": {
+      "REDIS_URL": "${REDIS_URL}"
+    }
+  }
+}
+```
+
+**README.md**:
+```markdown
+# Database Tools
+
+Connect to multiple databases via MCP servers.
+
+## Setup
+
+Set environment variables:
+
+```bash
+export DATABASE_URL="postgresql://localhost/mydb"
+export MONGO_URL="mongodb://localhost/mydb"
+export REDIS_URL="redis://localhost:6379"
+```
+
+## Development
+
+```bash
+claude --plugin-dir ./database-tools
+```
+
+## Available MCP Tools
+
+- `mcp__plugin_database-tools_postgres__*` - PostgreSQL operations
+- `mcp__plugin_database-tools_mongodb__*` - MongoDB operations
+- `mcp__plugin_database-tools_redis__*` - Redis operations
+```

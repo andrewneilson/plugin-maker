@@ -55,10 +55,15 @@ cat ./my-plugin/.claude-plugin/plugin.json | jq 'has("name") and has("descriptio
 - [ ] YAML frontmatter has `name` field
 - [ ] YAML frontmatter has `description` field
 - [ ] `name` matches filename (without .md)
-- [ ] Description includes trigger scenarios
-- [ ] Description has Example/commentary tags for complex use cases
+- [ ] Description uses third-person: "Use this agent when..." not "Use me when..."
+- [ ] Description includes specific trigger scenarios
+- [ ] Description has `Examples:` tag with `<example>` blocks
+- [ ] Examples include: Context, user quote, assistant response
+- [ ] Examples use proper format: `<example>Context: ...\nuser: "..."\nassistant: "..."</example>`
+- [ ] Optional `<commentary>` tags explain complex triggering logic
 - [ ] `model` field is valid: `inherit`, `sonnet`, `opus`, or `haiku`
 - [ ] `tools` field is array if present
+- [ ] `color` field uses valid color if present
 
 ### Skills Checklist
 
@@ -73,17 +78,26 @@ cat ./my-plugin/.claude-plugin/plugin.json | jq 'has("name") and has("descriptio
 
 - [ ] Hooks config is in `hooks/hooks.json`
 - [ ] JSON is valid (no trailing commas)
-- [ ] Event names are valid: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`
-- [ ] Commands use `${CLAUDE_PLUGIN_ROOT}` for paths (not hardcoded)
+- [ ] Plugin hooks use wrapper format with `"hooks"` field
+- [ ] Event names are valid: `PreToolUse`, `PostToolUse`, `Stop`, `SubagentStop`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `PreCompact`, `Notification`
+- [ ] Hook type is either `"command"` or `"prompt"`
+- [ ] Prompt-based hooks have reasonable timeout (20-30 seconds)
+- [ ] Command hooks use `${CLAUDE_PLUGIN_ROOT}` for paths (not hardcoded)
 - [ ] Handler scripts exist at referenced paths
 - [ ] Handler scripts have execute permissions if needed
-- [ ] Timeout values are reasonable (default 10-30 seconds)
+- [ ] Timeout values are reasonable (5-30 seconds)
+- [ ] Matchers use valid tool names or wildcards
 
 ### MCP Configuration Checklist
 
-- [ ] Config is in `.mcp.json` at plugin root
+- [ ] Config is in `.mcp.json` at plugin root (or inline in plugin.json)
 - [ ] JSON is valid
-- [ ] Commands use `${CLAUDE_PLUGIN_ROOT}` for paths
+- [ ] Server type specified if not stdio: `"sse"`, `"http"`, `"ws"`
+- [ ] stdio servers use `${CLAUDE_PLUGIN_ROOT}` for portable paths
+- [ ] SSE servers have valid `url` field
+- [ ] HTTP servers have `url` and optional `headers`
+- [ ] WebSocket servers have valid `url`
+- [ ] Environment variables documented in README
 - [ ] Referenced server scripts exist
 - [ ] Dependencies are documented in README
 

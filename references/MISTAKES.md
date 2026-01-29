@@ -369,3 +369,118 @@ my-plugin/
 │   └── plugin.json
 └── README.md             # At plugin root
 ```
+
+## 16. Using Command Hooks Instead of Prompt-Based
+
+Prompt-based hooks are often better for context-aware decisions.
+
+**Wrong** - Complex bash script for validation:
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "hooks": [{
+        "type": "command",
+        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/complex-validator.sh"
+      }]
+    }]
+  }
+}
+```
+
+**Correct** - Prompt-based for context awareness:
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Write|Edit",
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "Validate file write safety. Check: system paths, credentials, path traversal. Return 'approve' or 'deny'.",
+        "timeout": 30
+      }]
+    }]
+  }
+}
+```
+
+## 17. Missing Hook Wrapper in Plugin
+
+Plugin hooks need wrapper format with `"hooks"` field.
+
+**Wrong** - Direct format (this is for settings):
+```json
+{
+  "PreToolUse": [...]
+}
+```
+
+**Correct** - Wrapper format for plugins:
+```json
+{
+  "hooks": {
+    "PreToolUse": [...]
+  }
+}
+```
+
+## 18. Agent Description Without Examples
+
+Agents trigger better with concrete examples.
+
+**Wrong** - No examples:
+```yaml
+---
+name: code-analyzer
+description: Use for code analysis
+---
+```
+
+**Correct** - With examples:
+```yaml
+---
+name: code-analyzer
+description: Use this agent for code analysis and issue detection. Examples: <example>Context: User wants security review\nuser: "Check auth.js for vulnerabilities"\nassistant: "I'll use code-analyzer for security analysis"</example>
+---
+```
+
+## 19. Wrong MCP Server Type for Use Case
+
+Choosing the wrong server type for the use case.
+
+**Wrong** - stdio for cloud service:
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "some-local-command"
+    }
+  }
+}
+```
+
+**Correct** - SSE for cloud service with OAuth:
+```json
+{
+  "mcpServers": {
+    "github": {
+      "type": "sse",
+      "url": "https://mcp.github.com/sse"
+    }
+  }
+}
+```
+
+## 20. Agent Description in Second Person
+
+Use third-person for agent descriptions.
+
+**Wrong** - Second person:
+```yaml
+description: Use me when you want to analyze code
+```
+
+**Correct** - Third person:
+```yaml
+description: Use this agent when analyzing code for security issues
+```

@@ -146,36 +146,52 @@ You are an expert at DOMAIN.
 How to structure your response.
 ```
 
-### Agent with Examples
+### Agent with Examples (Recommended)
 
 ```yaml
 ---
-name: agent-name
-description: Use this agent when analyzing code for issues. Examples: <example>Context: User wants security review\nuser: "Check this for vulnerabilities"\nassistant: "I'll use agent-name for analysis"</example>
+name: security-analyzer
+description: Use this agent for security analysis including vulnerability detection and authentication review. Examples: <example>Context: User asks about security\nuser: "Check auth.js for vulnerabilities"\nassistant: "I'll use security-analyzer for security review"</example> <example>Context: User mentions security\nuser: "Are there SQL injection risks?"\nassistant: "I'll analyze with security-analyzer"</example>
 model: sonnet
-color: yellow
-tools: ["Read", "Grep", "Glob", "Bash"]
+color: red
+tools: ["Read", "Grep", "Glob"]
 ---
 
-You are an expert at DOMAIN.
+You are an expert security analyst specializing in code security.
 
-## Core Mission
+## Your Role
 
-Detailed description of what this agent does.
-
-## Process
-
-1. Step one
-2. Step two
-3. Step three
+Analyze code for security vulnerabilities including:
+1. Authentication and authorization issues
+2. Injection vulnerabilities (SQL, XSS, command)
+3. Cryptography misuse
+4. Sensitive data exposure
 
 ## Output Format
 
-### Section 1
-- Item details
+### Critical Issues
+- Issue with severity
+- Location (file:line)
+- Remediation steps
 
-### Section 2
-- Item details
+### Recommendations
+- Security improvements
+```
+
+### Agent with Commentary
+
+```yaml
+---
+name: refactoring-specialist
+description: Use this agent when refactoring code or improving code structure. Examples: <example>Context: User wants better code\nuser: "Refactor this component"\nassistant: "I'll use refactoring-specialist to restructure"<commentary>Agent handles multi-file refactoring with consistency</commentary></example>
+model: sonnet
+color: green
+tools: ["Read", "Grep", "Glob", "Edit"]
+---
+
+You are an expert in code refactoring and software design.
+
+Improve code quality through strategic refactoring while preserving behavior.
 ```
 
 ### Lightweight Agent (Haiku)
@@ -223,7 +239,48 @@ Concrete, copy-paste ready examples.
 
 ## hooks.json
 
-### PreToolUse Hook
+### Prompt-Based Hook (Recommended)
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Validate file write safety. Check: system paths, credentials, path traversal. Return 'approve' or 'deny'.",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Stop Hook for Completeness
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Verify task completion: tests run, build succeeded, questions answered. Return 'approve' to stop or 'block' with reason.",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Command Hook (PreToolUse)
 
 ```json
 {
@@ -243,44 +300,74 @@ Concrete, copy-paste ready examples.
 }
 ```
 
-### Multiple Hooks
+### All Hook Events
 
 ```json
 {
   "hooks": {
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse.py",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse.py",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/stop.py",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
+    "PreToolUse": [{
+      "hooks": [{
+        "type": "command",
+        "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse.py",
+        "timeout": 10
+      }]
+    }],
+    "PostToolUse": [{
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "Analyze tool result for issues. Provide feedback if problems detected.",
+        "timeout": 20
+      }]
+    }],
+    "Stop": [{
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "Verify task completion. Return 'approve' or 'block' with reason.",
+        "timeout": 30
+      }]
+    }],
+    "SubagentStop": [{
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "Verify subagent completed its task.",
+        "timeout": 20
+      }]
+    }],
+    "UserPromptSubmit": [{
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "Check if prompt requires security guidance. If yes, provide warnings.",
+        "timeout": 20
+      }]
+    }],
+    "SessionStart": [{
+      "hooks": [{
+        "type": "command",
+        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/load-context.sh",
+        "timeout": 10
+      }]
+    }],
+    "SessionEnd": [{
+      "hooks": [{
+        "type": "command",
+        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/cleanup.sh",
+        "timeout": 10
+      }]
+    }],
+    "PreCompact": [{
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "Summarize key decisions and context to preserve during compaction.",
+        "timeout": 20
+      }]
+    }],
+    "Notification": [{
+      "hooks": [{
+        "type": "command",
+        "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/notification.py",
+        "timeout": 5
+      }]
+    }]
   }
 }
 ```
@@ -437,6 +524,51 @@ if __name__ == "__main__":
     "server-name": {
       "command": "python3",
       "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/server.py"]
+    }
+  }
+}
+```
+
+### SSE MCP Server (Cloud)
+
+```json
+{
+  "mcpServers": {
+    "asana": {
+      "type": "sse",
+      "url": "https://mcp.asana.com/sse"
+    }
+  }
+}
+```
+
+### HTTP MCP Server (REST API)
+
+```json
+{
+  "mcpServers": {
+    "api-service": {
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+### WebSocket MCP Server
+
+```json
+{
+  "mcpServers": {
+    "realtime": {
+      "type": "ws",
+      "url": "wss://realtime.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${WS_TOKEN}"
+      }
     }
   }
 }
