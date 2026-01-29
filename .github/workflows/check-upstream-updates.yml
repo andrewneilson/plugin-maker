@@ -140,8 +140,7 @@ jobs:
               repo: context.repo.repo,
               title: title,
               body: body,
-              labels: ['upstream-sync', 'copilot'],
-              assignees: ['copilot']
+              labels: ['upstream-sync', 'copilot']
             });
 
             console.log(`Created issue #${issue.number}`);
