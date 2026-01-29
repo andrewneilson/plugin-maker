@@ -1,0 +1,3 @@
+[submodule ".github/skills/skill-maker"]
+	path = .github/skills/skill-maker
+	url = git@github.com:andrewneilson/skill-maker.git
