@@ -1,6 +1,6 @@
 ---
 name: plugin-maker
-description: Create, validate, and maintain Claude Code plugins. Use when the user wants to create a plugin, add a plugin, make a plugin, build a plugin, or mentions plugin creation. Also use when adding commands, agents, skills, or hooks to existing plugins, configuring plugin.json manifests, or debugging plugin discovery.
+description: This skill should be used when the user asks to "create a plugin", "add a plugin", "make a plugin", "build a plugin", "create command", "add slash command", "create agent", "add hook", "create skill", "configure MCP server", "add MCP integration", "validate plugin", "debug plugin discovery", "use ${CLAUDE_PLUGIN_ROOT}", or mentions plugin structure, plugin.json manifests, hook events (PreToolUse, PostToolUse, Stop, SessionStart), MCP integration, agent triggering, or command development.
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 
@@ -141,6 +141,12 @@ The user's input is available as $ARGUMENTS.
 | `allowed-tools` | No | Restrict available tools (JSON array) |
 | `disable-model-invocation` | No | If true, only explicit `/command` triggers it |
 
+**Advanced Features**:
+- **Bash execution**: Use `!git status` syntax to run commands inline
+- **File references**: Use `@${CLAUDE_PLUGIN_ROOT}/config.json` to include file contents
+- **Variables**: `$ARGUMENTS` for user input, `${CLAUDE_PLUGIN_ROOT}` for plugin paths
+- See references/command-patterns.md for detailed patterns
+
 ### Agents (`agents/*.md`)
 
 Specialized subagents for parallel or delegated work.
@@ -170,6 +176,13 @@ Detailed instructions for the agent...
 | `color` | No | Visual indicator: yellow, blue, green, etc. |
 | `tools` | No | Array of available tools |
 
+**Agent Triggering Best Practices**:
+- Include `Examples:` tag in description with `<example>` blocks
+- Format: `Context: [situation]\nuser: "[quote]"\nassistant: "[response]"`
+- Add `<commentary>` tags to explain triggering logic
+- Use third-person: "Use this agent when..." not "Use me when..."
+- See references/agent-patterns.md for detailed examples
+
 ### Skills (`skills/skill-name/SKILL.md`)
 
 Model-invoked capabilities that Claude activates based on context. Plugin skills are namespaced as `/plugin-name:skill-name`.
@@ -187,12 +200,18 @@ Instructions...
 
 ### Hooks (`hooks/hooks.json`)
 
-Lifecycle event handlers.
+Event-driven automation that executes in response to Claude Code events.
 
+**Hook Types**:
+- **Prompt-based**: LLM-driven decisions for context-aware validation
+- **Command-based**: Execute bash commands for deterministic checks
+
+**Command hook example**:
 ```json
 {
   "hooks": {
     "PreToolUse": [{
+      "matcher": "Write",
       "hooks": [{
         "type": "command",
         "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/handler.py",
@@ -203,28 +222,96 @@ Lifecycle event handlers.
 }
 ```
 
+**Prompt-based hook example**:
+```json
+{
+  "hooks": {
+    "Stop": [{
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "Verify task completion: tests run, build succeeded. Return 'approve' to stop or 'block' with reason.",
+        "timeout": 30
+      }]
+    }]
+  }
+}
+```
+
 **Available Events**:
 | Event | Trigger |
 |-------|---------|
-| `PreToolUse` | Before any tool executes |
+| `PreToolUse` | Before any tool executes (can approve/deny) |
 | `PostToolUse` | After a tool executes |
+| `Stop` | When Claude wants to stop (validate completeness) |
+| `SubagentStop` | When subagent wants to stop |
 | `UserPromptSubmit` | When user submits a prompt |
-| `Stop` | When Claude wants to stop |
+| `SessionStart` | When Claude Code session begins |
+| `SessionEnd` | When session ends |
+| `PreCompact` | Before context compaction |
+| `Notification` | When Claude sends notifications |
 
-**Important**: Use `${CLAUDE_PLUGIN_ROOT}` for paths in hook commands.
+**Important**:
+- Use `${CLAUDE_PLUGIN_ROOT}` for portable paths in hook commands
+- Plugin hooks require wrapper format with `"hooks"` field (see references/hook-patterns.md)
 
 ### MCP Configuration (`.mcp.json`)
 
+Model Context Protocol enables plugins to integrate with external services and APIs.
+
+**Server Types**:
+| Type | Use Case | Example |
+|------|----------|---------|
+| `stdio` | Local processes, custom servers | NPM-packaged MCP servers |
+| `sse` | Cloud services with OAuth | Asana, GitHub hosted servers |
+| `http` | REST APIs with token auth | Custom API backends |
+| `ws` | Real-time communication | WebSocket-based services |
+
+**stdio server (local process)**:
 ```json
 {
   "mcpServers": {
     "my-server": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"],
+      "env": {
+        "NODE_ENV": "production"
+      }
     }
   }
 }
 ```
+
+**SSE server (hosted service)**:
+```json
+{
+  "mcpServers": {
+    "asana": {
+      "type": "sse",
+      "url": "https://mcp.asana.com/sse"
+    }
+  }
+}
+```
+
+**HTTP server (REST API)**:
+```json
+{
+  "mcpServers": {
+    "api-service": {
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+**Key points**:
+- Use `${CLAUDE_PLUGIN_ROOT}` for portable paths
+- MCP tools appear as: `mcp__plugin_<name>_<server>__<tool>`
+- See references/mcp-patterns.md for detailed patterns
 
 ### LSP Configuration (`.lsp.json`)
 
@@ -294,6 +381,32 @@ Configure Language Server Protocol servers for enhanced editor support:
 | Skills directory | plural `skills/` | not `skill/` |
 | Hooks directory | singular `hooks/` | with `hooks.json` inside |
 
+## Writing Style Guidelines
+
+**For component descriptions** (commands, agents, skills):
+- Use third-person: "Use this agent when..." not "Use me when..."
+- Include specific trigger scenarios and keywords
+- For agents, add `Examples:` tag with `<example>` blocks
+
+**For component instructions** (body content):
+- Use imperative/infinitive: "Review the code" not "You should review"
+- Write directives TO Claude about what to do
+- Avoid second-person phrases like "you should" or "you need to"
+
+**Example correct style**:
+```
+Review this code for security vulnerabilities including:
+- SQL injection
+- XSS attacks
+
+Provide specific line numbers and severity ratings.
+```
+
+**Example incorrect style**:
+```
+You should review this code. You'll receive a report with details.
+```
+
 ## Quick Reference
 
 **Create**:
@@ -328,3 +441,7 @@ ls .claude/plugins/*/
 - [Complete plugin examples](references/EXAMPLES.md)
 - [Common mistakes](references/MISTAKES.md)
 - [Copy-paste templates](references/TEMPLATES.md)
+- [Hook patterns and examples](references/hook-patterns.md)
+- [MCP integration patterns](references/mcp-patterns.md)
+- [Agent triggering patterns](references/agent-patterns.md)
+- [Command advanced features](references/command-patterns.md)
