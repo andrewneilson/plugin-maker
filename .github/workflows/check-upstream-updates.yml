@@ -31,25 +31,59 @@ jobs:
         run: |
           cd /tmp/upstream
 
-          # Get commits from last 7 days in relevant directories
-          COMMITS=$(git log --since="7 days ago" --oneline \
-            -- plugins/plugin-dev plugins/example-plugin README.md \
-            2>/dev/null | head -20)
+          # 1. Check for NEW plugins (directories in plugins/ not in our known list)
+          UPSTREAM_PLUGINS=$(ls -1 plugins/ 2>/dev/null | sort)
+          KNOWN_PLUGINS=$(cat $GITHUB_WORKSPACE/.github/known-plugins.txt 2>/dev/null | sort)
+          NEW_PLUGINS=$(comm -23 <(echo "$UPSTREAM_PLUGINS") <(echo "$KNOWN_PLUGINS") | tr '\n' ' ' | xargs)
 
-          if [ -n "$COMMITS" ] || [ "${{ inputs.force_check }}" = "true" ]; then
+          # 2. Check for MAJOR changes (new files only, not modifications)
+          # Focus on structural changes: new skills, new SKILL.md files, plugin.json changes
+          MAJOR_CHANGES=$(git log --since="30 days ago" --diff-filter=A --name-only --pretty=format: \
+            -- 'plugins/plugin-dev/**/SKILL.md' \
+               'plugins/plugin-dev/skills/*' \
+               'plugins/*/plugin.json' \
+            2>/dev/null | grep -E '^plugins/' | sort -u)
+
+          # 3. Trigger only if substantive changes found
+          if [ -n "$NEW_PLUGINS" ] || [ -n "$MAJOR_CHANGES" ] || [ "${{ inputs.force_check }}" = "true" ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
 
             # Build summary
             {
               echo "summary<<EOF"
-              echo "### Recent upstream commits (last 7 days)"
+              echo "### Change Detection Summary"
               echo ""
-              if [ -n "$COMMITS" ]; then
-                echo "$COMMITS" | while read line; do echo "- $line"; done
-              else
-                echo "- (force check requested)"
+
+              if [ -n "$NEW_PLUGINS" ]; then
+                echo "#### New Plugins Detected"
+                echo ""
+                for plugin in $NEW_PLUGINS; do
+                  echo "- \`$plugin\` (not in known-plugins.txt)"
+                done
+                echo ""
               fi
-              echo ""
+
+              if [ -n "$MAJOR_CHANGES" ]; then
+                echo "#### Major File Additions (last 30 days)"
+                echo ""
+                echo "$MAJOR_CHANGES" | while read file; do
+                  [ -n "$file" ] && echo "- \`$file\`"
+                done
+                echo ""
+              fi
+
+              if [ "${{ inputs.force_check }}" = "true" ]; then
+                echo "#### Force Check"
+                echo ""
+                echo "- Manual workflow trigger with force_check=true"
+                echo ""
+              fi
+
+              if [ -z "$NEW_PLUGINS" ] && [ -z "$MAJOR_CHANGES" ]; then
+                echo "- (force check requested, no substantive changes detected)"
+                echo ""
+              fi
+
               echo "### Key files in plugin-dev"
               echo ""
               ls -1 plugins/plugin-dev/skills/ 2>/dev/null | while read skill; do
