@@ -4,6 +4,17 @@ Copy-paste templates for creating plugin components.
 
 ## plugin.json Manifest
 
+### Minimal (required fields only)
+
+```json
+{
+  "name": "PLUGIN_NAME",
+  "description": "PLUGIN_DESCRIPTION"
+}
+```
+
+### Full (with optional fields)
+
 ```json
 {
   "name": "PLUGIN_NAME",
@@ -19,8 +30,8 @@ Copy-paste templates for creating plugin components.
 Replace:
 - `PLUGIN_NAME`: lowercase with hyphens, matches directory name
 - `PLUGIN_DESCRIPTION`: brief description of what the plugin does
-- `YOUR_NAME`: your name
-- `YOUR_EMAIL`: your email address
+- `YOUR_NAME`: your name (optional)
+- `YOUR_EMAIL`: your email address (optional)
 
 ## README.md
 
@@ -31,15 +42,24 @@ Brief description of what this plugin does.
 
 ## Commands
 
-- `/command-name [args]` - Description of what the command does
+- `/plugin-name:command-name [args]` - Description of what the command does
 
 ## Agents
 
 - `agent-name` - When this agent is used
 
+## Development
+
+```bash
+# Test the plugin
+claude --plugin-dir ./plugin-name
+```
+
 ## Installation
 
-Copy to `~/.claude/plugins/plugin-name/`
+```bash
+cp -r ./plugin-name ~/.claude/plugins/
+```
 
 ## Requirements
 
@@ -344,6 +364,39 @@ if __name__ == "__main__":
     main()
 ```
 
+## .lsp.json
+
+### Basic LSP Configuration
+
+```json
+{
+  "lspServers": {
+    "server-name": {
+      "command": "language-server-binary",
+      "args": ["--stdio"],
+      "filetypes": ["ext1", "ext2"]
+    }
+  }
+}
+```
+
+### LSP with Environment Variables
+
+```json
+{
+  "lspServers": {
+    "server-name": {
+      "command": "language-server-binary",
+      "args": ["--stdio"],
+      "filetypes": ["ext"],
+      "env": {
+        "MY_VAR": "value"
+      }
+    }
+  }
+}
+```
+
 ## .mcp.json
 
 ### Basic MCP Configuration
@@ -391,26 +444,38 @@ if __name__ == "__main__":
 
 ## Directory Setup Commands
 
-### Create Minimal Plugin
+### Create Minimal Plugin (for development)
 
 ```bash
 PLUGIN_NAME="my-plugin"
-mkdir -p ~/.claude/plugins/$PLUGIN_NAME/.claude-plugin
-mkdir -p ~/.claude/plugins/$PLUGIN_NAME/commands
+mkdir -p ./$PLUGIN_NAME/.claude-plugin
+mkdir -p ./$PLUGIN_NAME/commands
 ```
 
-### Create Full Plugin
+### Create Full Plugin (for development)
 
 ```bash
 PLUGIN_NAME="my-plugin"
-mkdir -p ~/.claude/plugins/$PLUGIN_NAME/.claude-plugin
-mkdir -p ~/.claude/plugins/$PLUGIN_NAME/commands
-mkdir -p ~/.claude/plugins/$PLUGIN_NAME/agents
-mkdir -p ~/.claude/plugins/$PLUGIN_NAME/skills/$PLUGIN_NAME
-mkdir -p ~/.claude/plugins/$PLUGIN_NAME/hooks
+mkdir -p ./$PLUGIN_NAME/.claude-plugin
+mkdir -p ./$PLUGIN_NAME/commands
+mkdir -p ./$PLUGIN_NAME/agents
+mkdir -p ./$PLUGIN_NAME/skills/$PLUGIN_NAME
+mkdir -p ./$PLUGIN_NAME/hooks
 ```
 
-### Create Project Plugin
+### Test Plugin During Development
+
+```bash
+claude --plugin-dir ./my-plugin
+```
+
+### Install Plugin
+
+```bash
+cp -r ./my-plugin ~/.claude/plugins/
+```
+
+### Create Project Plugin (committed to git)
 
 ```bash
 PLUGIN_NAME="my-plugin"

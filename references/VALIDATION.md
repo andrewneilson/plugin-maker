@@ -18,23 +18,22 @@ Complete validation checklists for ensuring plugins are properly structured and 
 |-------|------------|
 | `name` | Non-empty string, matches directory name, lowercase with hyphens |
 | `description` | Non-empty string describing the plugin |
-| `author` | Object with `name` field (email optional) |
 
 ### Optional Fields
 
 | Field | Type | Purpose |
 |-------|------|---------|
 | `version` | string | Semantic version (e.g., "1.0.0") |
-| `author.email` | string | Contact email |
+| `author` | object | Attribution (with `name` and optional `email` fields) |
 
 ### JSON Validation Command
 
 ```bash
 # Check JSON syntax
-cat ~/.claude/plugins/my-plugin/.claude-plugin/plugin.json | jq .
+cat ./my-plugin/.claude-plugin/plugin.json | jq .
 
 # Verify required fields exist
-cat ~/.claude/plugins/my-plugin/.claude-plugin/plugin.json | jq 'has("name") and has("description") and has("author")'
+cat ./my-plugin/.claude-plugin/plugin.json | jq 'has("name") and has("description")'
 ```
 
 ## Component Validation
@@ -88,22 +87,30 @@ cat ~/.claude/plugins/my-plugin/.claude-plugin/plugin.json | jq 'has("name") and
 - [ ] Referenced server scripts exist
 - [ ] Dependencies are documented in README
 
+### LSP Configuration Checklist
+
+- [ ] Config is in `.lsp.json` at plugin root
+- [ ] JSON is valid
+- [ ] `command` field specifies the LSP server executable
+- [ ] `filetypes` array specifies which file extensions activate it
+- [ ] LSP server is installed and available in PATH
+
 ## Post-Creation Validation Protocol
 
 ### Step 1: Verify directory structure
 
 ```bash
 # Check plugin root
-ls -la ~/.claude/plugins/my-plugin/
+ls -la ./my-plugin/
 
 # Check manifest
-ls -la ~/.claude/plugins/my-plugin/.claude-plugin/
+ls -la ./my-plugin/.claude-plugin/
 ```
 
 ### Step 2: Validate manifest JSON
 
 ```bash
-cat ~/.claude/plugins/my-plugin/.claude-plugin/plugin.json | jq .
+cat ./my-plugin/.claude-plugin/plugin.json | jq .
 ```
 
 You should see properly formatted JSON with no errors.
@@ -112,20 +119,26 @@ You should see properly formatted JSON with no errors.
 
 ```bash
 # Check for correct plural names
-ls ~/.claude/plugins/my-plugin/ | grep -E '^(commands|agents|skills|hooks)$'
+ls ./my-plugin/ | grep -E '^(commands|agents|skills|hooks)$'
 ```
 
-### Step 4: Test discovery
+### Step 4: Test with --plugin-dir
 
+```bash
+# Test plugin without installing
+claude --plugin-dir ./my-plugin
+```
+
+Then inside Claude:
 1. Ask Claude about your plugin's functionality
-2. Try using a command: `/my-command`
+2. Try using a command: `/my-plugin:my-command`
 3. Check if agents appear in Task tool options
 
 ### Step 5: Debug if needed
 
 ```bash
 # Run Claude with debug output
-claude --debug
+claude --debug --plugin-dir ./my-plugin
 ```
 
 ## Common Validation Errors

@@ -17,10 +17,12 @@ Create discoverable Claude Code plugins that bundle commands, agents, skills, ho
 
 ## Plugin Structure
 
+> **Warning**: Do not place `plugin.json` directly in the plugin directory. It must be inside the `.claude-plugin/` subdirectory for the plugin to be discovered.
+
 ```
 my-plugin/
 ├── .claude-plugin/
-│   └── plugin.json          # Required: manifest file
+│   └── plugin.json          # Required: manifest file (MUST be here)
 ├── README.md                 # Recommended: documentation
 ├── commands/                 # Slash commands (*.md)
 │   ├── my-command.md
@@ -33,12 +35,23 @@ my-plugin/
 ├── hooks/                    # Hook configurations
 │   ├── hooks.json
 │   └── handler.py
-└── .mcp.json                 # MCP server configuration
+├── .mcp.json                 # MCP server configuration
+└── .lsp.json                 # LSP server configuration
 ```
 
 ## Quick Template: plugin.json
 
 Every plugin requires `.claude-plugin/plugin.json`:
+
+```json
+{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "Brief description of what this plugin does"
+}
+```
+
+Optional author field for attribution:
 
 ```json
 {
@@ -57,8 +70,8 @@ Every plugin requires `.claude-plugin/plugin.json`:
 ### Step 1: Create Directory Structure
 
 ```bash
-mkdir -p ~/.claude/plugins/my-plugin/.claude-plugin
-mkdir -p ~/.claude/plugins/my-plugin/commands
+mkdir -p ./my-plugin/.claude-plugin
+mkdir -p ./my-plugin/commands
 ```
 
 ### Step 2: Create plugin.json
@@ -68,11 +81,7 @@ Create `.claude-plugin/plugin.json` with required fields:
 ```json
 {
   "name": "my-plugin",
-  "description": "What this plugin does",
-  "author": {
-    "name": "Your Name",
-    "email": "you@example.com"
-  }
+  "description": "What this plugin does"
 }
 ```
 
@@ -80,17 +89,27 @@ Create `.claude-plugin/plugin.json` with required fields:
 
 Add the components your plugin needs (see Component Quick Reference below).
 
-### Step 4: Validate Structure
+### Step 4: Test with --plugin-dir
+
+Use the `--plugin-dir` flag to test your plugin without installing it:
+
+```bash
+claude --plugin-dir ./my-plugin
+```
+
+This loads your plugin for the current session only, allowing rapid iteration.
+
+### Step 5: Validate Structure
 
 ```bash
 # Check manifest exists and is valid JSON
-cat ~/.claude/plugins/my-plugin/.claude-plugin/plugin.json | jq .
+cat ./my-plugin/.claude-plugin/plugin.json | jq .
 
 # List all components
-ls -la ~/.claude/plugins/my-plugin/
+ls -la ./my-plugin/
 ```
 
-### Step 5: Test Discovery
+### Step 6: Test Discovery
 
 Ask Claude to use your plugin's commands or agents to verify discovery works.
 
@@ -98,7 +117,7 @@ Ask Claude to use your plugin's commands or agents to verify discovery works.
 
 ### Commands (`commands/*.md`)
 
-Slash commands users invoke explicitly.
+Slash commands users invoke explicitly. Plugin commands are namespaced as `/plugin-name:command-name`.
 
 ```yaml
 ---
@@ -153,7 +172,7 @@ Detailed instructions for the agent...
 
 ### Skills (`skills/skill-name/SKILL.md`)
 
-Model-invoked capabilities that Claude activates based on context.
+Model-invoked capabilities that Claude activates based on context. Plugin skills are namespaced as `/plugin-name:skill-name`.
 
 ```yaml
 ---
@@ -207,15 +226,52 @@ Lifecycle event handlers.
 }
 ```
 
+### LSP Configuration (`.lsp.json`)
+
+Configure Language Server Protocol servers for enhanced editor support:
+
+```json
+{
+  "lspServers": {
+    "my-lsp": {
+      "command": "my-language-server",
+      "args": ["--stdio"],
+      "filetypes": ["mylang"]
+    }
+  }
+}
+```
+
+**Fields**:
+| Field | Required | Description |
+|-------|----------|-------------|
+| `command` | Yes | The LSP server executable |
+| `args` | No | Command-line arguments |
+| `filetypes` | Yes | File extensions to activate for |
+
 ## Plugin Locations
 
 | Location | Purpose |
 |----------|---------|
-| `~/.claude/plugins/` | Personal plugins |
+| `--plugin-dir ./path` | Development/testing (primary workflow) |
+| `~/.claude/plugins/` | Personal plugins (installed) |
 | `.claude/plugins/` | Project plugins (committed to git) |
-| Remote repositories | Installed via URL |
 
 ## When to Create a Plugin
+
+### Standalone Skill vs Plugin Comparison
+
+| Feature | Standalone Skill | Plugin |
+|---------|------------------|--------|
+| Simplest option | One SKILL.md file | Multiple files/directories |
+| Commands | No | Yes |
+| Multiple skills | No | Yes |
+| Agents | No | Yes |
+| Hooks | No | Yes |
+| MCP servers | No | Yes |
+| LSP servers | No | Yes |
+| Namespacing | None | `/plugin-name:*` |
+| Distribution | Copy file | Package directory |
 
 **Create a plugin when**:
 - You need multiple component types (commands + agents, skills + hooks, etc.)
@@ -242,12 +298,22 @@ Lifecycle event handlers.
 
 **Create**:
 ```bash
-mkdir -p ~/.claude/plugins/my-plugin/.claude-plugin
+mkdir -p ./my-plugin/.claude-plugin
+```
+
+**Test during development**:
+```bash
+claude --plugin-dir ./my-plugin
 ```
 
 **Validate manifest**:
 ```bash
-cat ~/.claude/plugins/my-plugin/.claude-plugin/plugin.json | jq .
+cat ./my-plugin/.claude-plugin/plugin.json | jq .
+```
+
+**Install plugin**:
+```bash
+cp -r ./my-plugin ~/.claude/plugins/
 ```
 
 **List installed plugins**:

@@ -58,11 +58,19 @@ A minimal Claude Code plugin demonstrating basic structure.
 
 ## Commands
 
-- `/greet [name]` - Get a personalized greeting
+- `/minimal-plugin:greet [name]` - Get a personalized greeting
+
+## Development
+
+```bash
+claude --plugin-dir ./minimal-plugin
+```
 
 ## Installation
 
-Copy to `~/.claude/plugins/minimal-plugin/`
+```bash
+cp -r ./minimal-plugin ~/.claude/plugins/
+```
 ```
 
 ## Full-Featured Plugin (All Components)
@@ -349,11 +357,22 @@ Demonstrates MCP server integration with Claude Code plugins.
 ## Setup
 
 1. Install dependencies: `cd mcp-server && npm install`
-2. Copy plugin to `~/.claude/plugins/mcp-plugin/`
+
+## Development
+
+```bash
+claude --plugin-dir ./mcp-plugin
+```
+
+## Installation
+
+```bash
+cp -r ./mcp-plugin ~/.claude/plugins/
+```
 
 ## Commands
 
-- `/mcp-status` - Check MCP server status
+- `/mcp-plugin:mcp-status` - Check MCP server status
 
 ## MCP Tools
 

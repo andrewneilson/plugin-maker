@@ -69,11 +69,11 @@ my-plugin/                    # Directory name
     └── plugin.json           # Contains "name": "my-plugin"
 ```
 
-## 4. Missing author Field
+## 4. Minimal vs Full plugin.json
 
-The `author` field is required in plugin.json.
+The `author` field is optional but helpful for attribution.
 
-**Wrong** - Missing author:
+**Minimal** - Only required fields:
 ```json
 {
   "name": "my-plugin",
@@ -81,7 +81,7 @@ The `author` field is required in plugin.json.
 }
 ```
 
-**Correct** - Author included:
+**Full** - With optional author:
 ```json
 {
   "name": "my-plugin",
