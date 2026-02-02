@@ -73,11 +73,26 @@ cat ./my-plugin/.claude-plugin/plugin.json | jq 'has("name") and has("descriptio
 
 - [ ] Hooks config is in `hooks/hooks.json`
 - [ ] JSON is valid (no trailing commas)
-- [ ] Event names are valid: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`
-- [ ] Commands use `${CLAUDE_PLUGIN_ROOT}` for paths (not hardcoded)
+- [ ] Plugin hooks wrapped in `{"hooks": {...}}` structure
+- [ ] Event names are valid: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SubagentStop`, `SessionStart`, `SessionEnd`, `PreCompact`, `Notification`
+- [ ] Hook type is valid: `"prompt"` or `"command"`
+- [ ] Prompt-based hooks have `prompt` field
+- [ ] Command hooks use `${CLAUDE_PLUGIN_ROOT}` for paths (not hardcoded)
 - [ ] Handler scripts exist at referenced paths
 - [ ] Handler scripts have execute permissions if needed
-- [ ] Timeout values are reasonable (default 10-30 seconds)
+- [ ] Timeout values are reasonable (default: command 60s, prompt 30s)
+- [ ] Matchers use valid patterns: exact match, regex, or `"*"`
+
+### Plugin Settings Checklist
+
+- [ ] Settings file uses format: `.claude/plugin-name.local.md`
+- [ ] Plugin name in settings file matches plugin directory name
+- [ ] Settings file has valid YAML frontmatter (between `---` markers)
+- [ ] Hooks/commands that read settings handle missing file gracefully
+- [ ] README documents settings file structure and location
+- [ ] README documents restart requirement for settings changes
+- [ ] `.gitignore` includes `.claude/*.local.md`
+- [ ] Settings parsing validates values before use
 
 ### MCP Configuration Checklist
 

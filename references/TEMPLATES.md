@@ -223,7 +223,28 @@ Concrete, copy-paste ready examples.
 
 ## hooks.json
 
-### PreToolUse Hook
+### Prompt-Based Hook (Recommended)
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Validate file write safety. Check: path traversal, credentials, sensitive files. Return 'approve' or 'deny'.",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Command Hook
 
 ```json
 {
@@ -233,7 +254,7 @@ Concrete, copy-paste ready examples.
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse.py",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/validate.sh",
             "timeout": 10
           }
         ]
@@ -243,39 +264,52 @@ Concrete, copy-paste ready examples.
 }
 ```
 
-### Multiple Hooks
+### Multiple Hook Events
 
 ```json
 {
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Write|Edit",
         "hooks": [
           {
-            "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse.py",
-            "timeout": 10
+            "type": "prompt",
+            "prompt": "Validate file write safety"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse.py",
-            "timeout": 10
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/log.sh",
+            "timeout": 5
           }
         ]
       }
     ],
     "Stop": [
       {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Verify task completion: tests run, build succeeded"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/stop.py",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/load-context.sh",
             "timeout": 10
           }
         ]
@@ -285,19 +319,18 @@ Concrete, copy-paste ready examples.
 }
 ```
 
-### Hook with Matcher
+### Hook with Matcher (Regex)
 
 ```json
 {
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "mcp__.*__delete.*",
         "hooks": [
           {
-            "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/check-bash.py",
-            "timeout": 5
+            "type": "prompt",
+            "prompt": "Validate delete operation. Confirm this is intentional and safe."
           }
         ]
       }
@@ -440,6 +473,68 @@ if __name__ == "__main__":
     }
   }
 }
+```
+
+## Plugin Settings Template
+
+### Basic Settings File
+
+```markdown
+---
+enabled: true
+setting1: value1
+setting2: value2
+---
+
+# Plugin Configuration
+
+Additional context or documentation here.
+```
+
+### Settings with Multiple Types
+
+```markdown
+---
+enabled: true
+validation_level: strict
+max_retries: 3
+timeout_seconds: 30
+allowed_extensions: [".js", ".ts", ".tsx"]
+notification_level: info
+---
+
+# Project Settings
+
+Settings are active for this project.
+```
+
+### Hook Settings Reader (Bash)
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+STATE_FILE=".claude/my-plugin.local.md"
+
+# Quick exit if not configured
+if [[ ! -f "$STATE_FILE" ]]; then
+  exit 0
+fi
+
+# Parse frontmatter
+FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE")
+
+# Read fields
+ENABLED=$(echo "$FRONTMATTER" | grep '^enabled:' | sed 's/enabled: *//')
+MODE=$(echo "$FRONTMATTER" | grep '^mode:' | sed 's/mode: *//' | sed 's/^"\(.*\)"$/\1/')
+
+# Check enabled
+if [[ "$ENABLED" != "true" ]]; then
+  exit 0
+fi
+
+# Use settings
+echo "Mode: $MODE"
 ```
 
 ## Directory Setup Commands
