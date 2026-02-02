@@ -131,6 +131,10 @@ allowed-tools: ["Read", "Write", "Bash"]
 Instructions for Claude when this command is invoked.
 
 The user's input is available as $ARGUMENTS.
+
+**Advanced argument access:**
+- `$ARGUMENTS` - Full argument string
+- `$1`, `$2`, `$3` - Individual arguments (space-separated)
 ```
 
 **Fields**:
@@ -140,6 +144,7 @@ The user's input is available as $ARGUMENTS.
 | `argument-hint` | No | Hint text for arguments (e.g., `[file-path]`) |
 | `allowed-tools` | No | Restrict available tools (JSON array) |
 | `disable-model-invocation` | No | If true, only explicit `/command` triggers it |
+| `model` | No | Override model: `inherit`, `sonnet`, `opus`, `haiku` |
 
 ### Agents (`agents/*.md`)
 
@@ -235,16 +240,23 @@ See [Hook Development Guide](references/HOOKS.md) for comprehensive patterns.
 
 ### MCP Configuration (`.mcp.json`)
 
+Integrate Model Context Protocol servers for additional tools:
+
 ```json
 {
   "mcpServers": {
     "my-server": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"],
+      "env": {
+        "NODE_ENV": "production"
+      }
     }
   }
 }
 ```
+
+**Server types:** stdio, SSE, HTTP, WebSocket. Tools appear as `mcp__plugin-name__tool-name`.
 
 ### Plugin Settings (`.claude/plugin-name.local.md`)
 
