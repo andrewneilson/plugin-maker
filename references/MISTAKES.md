@@ -369,3 +369,120 @@ my-plugin/
 │   └── plugin.json
 └── README.md             # At plugin root
 ```
+
+## 16. Using Command Hooks Instead of Prompt Hooks
+
+Prompt-based hooks are simpler and more flexible for most use cases.
+
+**Wrong** - Unnecessary bash script:
+```json
+{
+  "hooks": {
+    "Stop": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "command",
+        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-completion.sh"
+      }]
+    }]
+  }
+}
+```
+
+Then create complex bash script to check completion.
+
+**Correct** - Use prompt-based hook:
+```json
+{
+  "hooks": {
+    "Stop": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "Verify task completion: tests run, build succeeded, questions answered. Return 'approve' or 'block'."
+      }]
+    }]
+  }
+}
+```
+
+Reserve command hooks for deterministic checks or when bash is truly needed.
+
+## 17. Missing Hooks Wrapper in plugin.json
+
+Plugin hooks.json requires a wrapper structure.
+
+**Wrong** - Direct events (settings format):
+```json
+{
+  "PreToolUse": [{
+    "matcher": "*",
+    "hooks": [{"type": "prompt", "prompt": "..."}]
+  }]
+}
+```
+
+**Correct** - Wrapped in "hooks" key (plugin format):
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "*",
+      "hooks": [{"type": "prompt", "prompt": "..."}]
+    }]
+  }
+}
+```
+
+## 18. Not Using ${CLAUDE_PLUGIN_ROOT} in Settings Paths
+
+Settings file paths should be relative to project, not plugin.
+
+**Wrong** - Using CLAUDE_PLUGIN_ROOT for settings:
+```bash
+STATE_FILE="${CLAUDE_PLUGIN_ROOT}/.claude/my-plugin.local.md"
+```
+
+**Correct** - Relative to project directory:
+```bash
+STATE_FILE=".claude/my-plugin.local.md"
+```
+
+Use `${CLAUDE_PLUGIN_ROOT}` only for plugin-internal files (hook scripts, etc.).
+
+## 19. Forgetting Restart Requirement for Hooks
+
+Hooks load at session start and cannot be hot-swapped.
+
+**Wrong documentation**:
+```markdown
+Edit hooks/hooks.json to change behavior.
+```
+
+**Correct documentation**:
+```markdown
+Edit hooks/hooks.json to change behavior.
+After editing, restart Claude Code:
+1. Exit Claude Code
+2. Run `claude` again
+3. New hooks will be loaded
+```
+
+## 20. Settings Files Not in .gitignore
+
+Settings files are user-local and should not be committed.
+
+**Wrong** - No gitignore:
+```
+project/
+└── .claude/
+    └── my-plugin.local.md  # Gets committed!
+```
+
+**Correct** - Add to .gitignore:
+```gitignore
+.claude/*.local.md
+.claude/*.local.json
+```
+
+Document this in plugin README.

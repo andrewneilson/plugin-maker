@@ -165,10 +165,12 @@ Detailed instructions for the agent...
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | Yes | Agent identifier (lowercase, hyphens) |
-| `description` | Yes | When to use (include Examples/commentary tags) |
+| `description` | Yes | When to use. Include Examples tags: `<example>Context: ...\nuser: "..."\nassistant: "..."</example>` |
 | `model` | No | `inherit`, `sonnet`, `opus`, `haiku` |
 | `color` | No | Visual indicator: yellow, blue, green, etc. |
 | `tools` | No | Array of available tools |
+
+**Triggering Tip**: Use `<example>` tags in descriptions for complex use cases. Include context, user message, and assistant response to guide invocation.
 
 ### Skills (`skills/skill-name/SKILL.md`)
 
@@ -187,16 +189,27 @@ Instructions...
 
 ### Hooks (`hooks/hooks.json`)
 
-Lifecycle event handlers.
+Event-driven automation scripts. Use for validation, context injection, and workflow automation.
+
+**Hook Types:**
+- **Prompt-based** (recommended): LLM-driven decisions with `"type": "prompt"`
+- **Command-based**: Bash scripts with `"type": "command"`
 
 ```json
 {
   "hooks": {
     "PreToolUse": [{
+      "matcher": "Write|Edit",
       "hooks": [{
-        "type": "command",
-        "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/handler.py",
-        "timeout": 10
+        "type": "prompt",
+        "prompt": "Validate file write safety. Check: path traversal, credentials. Return 'approve' or 'deny'."
+      }]
+    }],
+    "Stop": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "prompt",
+        "prompt": "Verify task completion: tests run, build succeeded. Return 'approve' or 'block'."
       }]
     }]
   }
@@ -210,8 +223,15 @@ Lifecycle event handlers.
 | `PostToolUse` | After a tool executes |
 | `UserPromptSubmit` | When user submits a prompt |
 | `Stop` | When Claude wants to stop |
+| `SubagentStop` | When subagent wants to stop |
+| `SessionStart` | Session begins |
+| `SessionEnd` | Session ends |
+| `PreCompact` | Before context compaction |
+| `Notification` | User notification sent |
 
 **Important**: Use `${CLAUDE_PLUGIN_ROOT}` for paths in hook commands.
+
+See [Hook Development Guide](references/HOOKS.md) for comprehensive patterns.
 
 ### MCP Configuration (`.mcp.json`)
 
@@ -225,6 +245,30 @@ Lifecycle event handlers.
   }
 }
 ```
+
+### Plugin Settings (`.claude/plugin-name.local.md`)
+
+Store per-project configuration with YAML frontmatter:
+
+```markdown
+---
+enabled: true
+strict_mode: false
+max_retries: 3
+---
+
+# Plugin Configuration
+
+Settings documentation here.
+```
+
+**Usage:**
+- Read from hooks, commands, and agents
+- Control plugin behavior per-project
+- Store state and configuration
+- Should be in `.gitignore`
+
+See [Plugin Settings Guide](references/PLUGIN-SETTINGS.md) for parsing techniques and patterns.
 
 ### LSP Configuration (`.lsp.json`)
 
@@ -324,6 +368,8 @@ ls .claude/plugins/*/
 
 ## Additional Resources
 
+- [Hook Development Guide](references/HOOKS.md) - Events, prompt/command hooks, security patterns
+- [Plugin Settings Guide](references/PLUGIN-SETTINGS.md) - Configuration files with YAML frontmatter
 - [Validation checklists](references/VALIDATION.md)
 - [Complete plugin examples](references/EXAMPLES.md)
 - [Common mistakes](references/MISTAKES.md)

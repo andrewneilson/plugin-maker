@@ -481,3 +481,276 @@ If $ARGUMENTS specifies a count, show that many PRs. Default: 10.
 4. Files changed
 5. Review status
 ```
+
+## Plugin with Prompt-Based Hooks
+
+A plugin demonstrating modern prompt-based hook validation.
+
+### Directory Structure
+
+```
+security-plugin/
+├── .claude-plugin/
+│   └── plugin.json
+├── README.md
+└── hooks/
+    └── hooks.json
+```
+
+### Files
+
+**.claude-plugin/plugin.json**:
+```json
+{
+  "name": "security-plugin",
+  "version": "1.0.0",
+  "description": "Security validation using prompt-based hooks"
+}
+```
+
+**hooks/hooks.json**:
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Validate file write safety. Check for: path traversal (../), sensitive files (.env, .key, credentials), system paths (/etc, /sys). Return 'approve' for safe operations or 'deny' with reason for unsafe operations.",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Validate bash command safety. Check for: rm -rf with system paths, curl/wget to unknown domains, sudo commands, chmod 777. Return 'approve' for safe commands or 'deny' with reason for dangerous commands."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Verify task completion. Check: 1) Were tests run and passing? 2) Was code built successfully? 3) Were user questions answered? Return 'approve' to stop or 'block' with specific reason to continue."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if prompt requires security guidance. If user mentions authentication, authorization, API keys, passwords, or security, return relevant security best practices as systemMessage."
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**README.md**:
+```markdown
+# Security Plugin
+
+Automated security validation using AI-powered hooks.
+
+## Features
+
+- **File Write Validation**: Blocks path traversal and sensitive file access
+- **Bash Command Safety**: Validates dangerous shell commands
+- **Completion Verification**: Ensures tests run before stopping
+- **Security Guidance**: Provides context-aware security advice
+
+## Usage
+
+The plugin automatically activates on:
+- File writes and edits
+- Bash commands
+- Task completion
+- User prompts mentioning security topics
+
+No configuration required - hooks use AI reasoning to make decisions.
+```
+
+## Plugin with Settings Configuration
+
+A plugin using per-project settings for customizable behavior.
+
+### Directory Structure
+
+```
+configurable-plugin/
+├── .claude-plugin/
+│   └── plugin.json
+├── README.md
+└── hooks/
+    ├── hooks.json
+    └── validate.sh
+```
+
+### Files
+
+**.claude-plugin/plugin.json**:
+```json
+{
+  "name": "configurable-plugin",
+  "version": "1.0.0",
+  "description": "Plugin with user-configurable validation levels"
+}
+```
+
+**.claude/configurable-plugin.local.md** (user creates):
+```markdown
+---
+enabled: true
+validation_level: strict
+max_file_size: 1000000
+allowed_extensions: [".js", ".ts", ".tsx", ".json"]
+enable_notifications: true
+---
+
+# Configurable Plugin Settings
+
+This project uses strict validation mode.
+All file writes are validated against security policies.
+```
+
+**hooks/hooks.json**:
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/validate.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**hooks/validate.sh**:
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Check for settings file
+STATE_FILE=".claude/configurable-plugin.local.md"
+
+if [[ ! -f "$STATE_FILE" ]]; then
+  # No settings, use defaults
+  exit 0
+fi
+
+# Parse frontmatter
+FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE")
+
+# Check if enabled
+ENABLED=$(echo "$FRONTMATTER" | grep '^enabled:' | sed 's/enabled: *//')
+if [[ "$ENABLED" != "true" ]]; then
+  exit 0
+fi
+
+# Read input
+input=$(cat)
+file_path=$(echo "$input" | jq -r '.tool_input.file_path // ""')
+
+# Get validation level
+LEVEL=$(echo "$FRONTMATTER" | grep '^validation_level:' | sed 's/validation_level: *//')
+
+case "$LEVEL" in
+  strict)
+    # Strict: validate extension, size, path
+    EXT="${file_path##*.}"
+    ALLOWED=$(echo "$FRONTMATTER" | grep '^allowed_extensions:')
+
+    if [[ ! "$ALLOWED" =~ ".$EXT" ]]; then
+      echo '{"decision": "deny", "reason": "File extension not allowed in strict mode"}' >&2
+      exit 2
+    fi
+
+    # Check for path traversal
+    if [[ "$file_path" == *".."* ]]; then
+      echo '{"decision": "deny", "reason": "Path traversal detected"}' >&2
+      exit 2
+    fi
+    ;;
+
+  standard)
+    # Standard: basic checks
+    if [[ "$file_path" == *".."* ]]; then
+      echo '{"decision": "deny", "reason": "Path traversal detected"}' >&2
+      exit 2
+    fi
+    ;;
+
+  lenient)
+    # Lenient: minimal checks
+    ;;
+esac
+
+# Allow
+exit 0
+```
+
+**README.md**:
+```markdown
+# Configurable Plugin
+
+Plugin with per-project configuration for flexible validation.
+
+## Configuration
+
+Create `.claude/configurable-plugin.local.md` in your project:
+
+\`\`\`markdown
+---
+enabled: true
+validation_level: strict  # strict, standard, or lenient
+max_file_size: 1000000
+allowed_extensions: [".js", ".ts", ".tsx"]
+enable_notifications: true
+---
+
+# Plugin Configuration
+\`\`\`
+
+Add to `.gitignore`:
+\`\`\`
+.claude/*.local.md
+\`\`\`
+
+### Validation Levels
+
+- **strict**: Extension whitelist, path validation, size checks
+- **standard**: Path validation only
+- **lenient**: Minimal validation
+
+### Changing Settings
+
+After editing settings:
+1. Save the file
+2. Exit Claude Code
+3. Restart: `claude` or `cc`
+
+## Usage
+
+Once configured, the plugin automatically validates file writes according to your settings.
+```
