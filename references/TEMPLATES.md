@@ -68,6 +68,46 @@ List any dependencies here.
 
 ## Command Frontmatter
 
+### Important: Commands are Instructions FOR Claude
+
+**Commands provide instructions FOR Claude, not TO the user.** Write from Claude's perspective about what Claude should do when the user runs this command.
+
+❌ **Wrong** (instructions TO user):
+```markdown
+---
+description: Run tests
+---
+
+# Test Command
+
+Please run the following command to test your code:
+```bash
+npm test
+```
+
+Review the output and fix any failures.
+```
+
+✅ **Correct** (instructions FOR Claude):
+```markdown
+---
+description: Run project tests and report results
+---
+
+# Test Command
+
+When the user runs this command:
+
+1. Execute the project's test suite using Bash
+2. If using npm: run `npm test`
+3. If using pytest: run `pytest`
+4. Parse the test output
+5. Report:
+   - Number of tests passed/failed
+   - Details of any failures
+   - Suggestions for fixes if tests fail
+```
+
 ### Basic Command
 
 ```yaml
@@ -122,6 +162,199 @@ allowed-tools: ["Read", "Grep", "Glob"]
 Read-only analysis instructions.
 ```
 
+### Command with Bash Tool Filtering
+
+```yaml
+---
+description: Run git operations safely
+allowed-tools: ["Bash(git:*)"]
+---
+
+# Git Command
+
+You can only run git commands. Use Bash to execute git operations:
+- git status
+- git log
+- git diff
+- git branch
+
+Do not run non-git commands.
+```
+
+### Command that Cannot be Programmatically Invoked
+
+```yaml
+---
+description: Interactive command requiring user input
+disable-model-invocation: true
+---
+
+# Interactive Setup
+
+This command requires interactive user input and cannot be invoked automatically by Claude.
+
+Steps:
+1. Ask user for configuration details
+2. Create configuration file
+3. Confirm settings with user
+```
+
+### Command with Positional Arguments
+
+```yaml
+---
+description: Process file with specified operation
+argument-hint: <operation> <file-path>
+---
+
+# Process File Command
+
+Arguments from $ARGUMENTS:
+- $1: operation (validate|format|check)
+- $2: file path
+
+Steps:
+1. Validate operation is one of: validate, format, check
+2. Check file exists at $2
+3. Perform the specified operation
+4. Report results
+```
+
+## Command Patterns
+
+### Pattern 1: Analysis Command (Read-Only)
+
+```yaml
+---
+description: Analyze code structure and complexity
+allowed-tools: ["Read", "Grep", "Glob"]
+---
+
+# Code Analysis
+
+Analyze the project structure:
+
+1. **Discover files**: Use Glob to find all source files
+2. **Read files**: Use Read to examine code
+3. **Analyze patterns**: Look for complexity, duplication
+4. **Report findings**:
+   - File organization
+   - Code complexity metrics
+   - Suggestions for improvement
+
+Do not modify any files.
+```
+
+### Pattern 2: Interactive Command
+
+```yaml
+---
+description: Interactive code refactoring with user approval
+allowed-tools: ["Read", "Grep", "Write", "Edit"]
+---
+
+# Refactor Code
+
+Interactive refactoring workflow:
+
+1. **Analyze**: Read code to understand current structure
+2. **Propose**: Show user planned refactoring changes
+3. **Wait for approval**: Ask user "Proceed with these changes?"
+4. **Execute**: Only if user approves, make changes
+5. **Verify**: Show diff of changes made
+6. **Test prompt**: Remind user to test changes
+```
+
+### Pattern 3: Build/Test Command
+
+```yaml
+---
+description: Run tests and report results
+allowed-tools: ["Bash", "Read"]
+---
+
+# Test Runner
+
+Execute project tests:
+
+1. **Detect test framework**:
+   - Check for package.json → npm test
+   - Check for pytest.ini → pytest
+   - Check for Cargo.toml → cargo test
+
+2. **Run tests**: Execute appropriate command
+
+3. **Parse results**:
+   - Count passed/failed tests
+   - Extract failure details
+   - Identify error patterns
+
+4. **Report**:
+   - ✅ "All 47 tests passed"
+   - ❌ "3 of 50 tests failed: [details]"
+
+5. **Suggest fixes** if failures detected
+```
+
+### Pattern 4: Code Generation Command
+
+```yaml
+---
+description: Generate boilerplate code from template
+allowed-tools: ["Read", "Write", "Create"]
+---
+
+# Generate Component
+
+Generate code from templates:
+
+1. **Get details from user**:
+   - Component name
+   - Component type
+   - Optional features
+
+2. **Read template**: Load template from ${CLAUDE_PLUGIN_ROOT}/templates/
+
+3. **Customize**: Replace placeholders with user values
+
+4. **Create file**: Write generated code
+
+5. **Next steps**: Inform user of:
+   - Files created
+   - Import statements needed
+   - How to use the component
+```
+
+### Pattern 5: Git Workflow Command
+
+```yaml
+---
+description: Create feature branch and initial commit
+allowed-tools: ["Bash(git:*)"]
+---
+
+# Start Feature
+
+Git workflow automation:
+
+1. **Branch name from user**: Ask for feature name
+
+2. **Check status**:
+   ```bash
+   git status
+   ```
+   Ensure clean working directory
+
+3. **Create branch**:
+   ```bash
+   git checkout -b feature/BRANCH_NAME
+   ```
+
+4. **Confirm**: Show user current branch
+
+Only run git commands. Do not run other bash commands.
+```
+
 ## Agent Frontmatter
 
 ### Basic Agent
@@ -146,36 +379,104 @@ You are an expert at DOMAIN.
 How to structure your response.
 ```
 
-### Agent with Examples
+### Agent with Triggering Examples (Recommended)
 
 ```yaml
 ---
-name: agent-name
-description: Use this agent when analyzing code for issues. Examples: <example>Context: User wants security review\nuser: "Check this for vulnerabilities"\nassistant: "I'll use agent-name for analysis"</example>
+name: code-reviewer
+description: This agent should be used when the user asks to "review my code", "check for code issues", "analyze code quality", or mentions code review, refactoring, or best practices
 model: sonnet
-color: yellow
-tools: ["Read", "Grep", "Glob", "Bash"]
+color: blue
 ---
 
-You are an expert at DOMAIN.
+You are an expert code reviewer.
 
-## Core Mission
+## Your Role
 
-Detailed description of what this agent does.
+Analyze code for:
+1. Correctness and logic errors
+2. Code quality and maintainability
+3. Security vulnerabilities
+4. Performance issues
 
 ## Process
 
-1. Step one
-2. Step two
-3. Step three
+1. **Read the code**: Use Read/Grep to examine files
+2. **Analyze thoroughly**: Check for issues systematically
+3. **Provide feedback**: Clear, actionable suggestions
+4. **Prioritize**: Critical issues first
 
 ## Output Format
 
-### Section 1
-- Item details
+### Critical Issues 🔴
+- Security vulnerabilities
+- Logic errors
 
-### Section 2
-- Item details
+### Improvements 🟡
+- Code quality suggestions
+- Performance optimizations
+
+### Nitpicks 🔵
+- Style improvements
+- Minor suggestions
+
+<example>
+Context: User wants code review
+user: "Can you review this authentication module?"
+assistant: "I'll review your authentication code for security and best practices."
+</example>
+
+<example>
+Context: Proactive review suggestion
+user: "I just finished implementing the login feature"
+assistant: "Great! Would you like me to review the login code for security issues?"
+</example>
+```
+
+### Agent with Multiple Triggering Scenarios
+
+```yaml
+---
+name: test-generator
+description: This agent should be used when the user asks to "write tests", "create test cases", "add unit tests", "generate test coverage", or mentions testing, TDD, or test-driven development
+model: sonnet
+color: green
+---
+
+You are an expert test engineer specializing in comprehensive test coverage.
+
+## Your Role
+
+Generate thorough test suites including:
+- Unit tests for individual functions
+- Integration tests for component interactions
+- Edge cases and boundary conditions
+- Error handling scenarios
+
+## Test Strategy
+
+1. **Analyze code**: Understand functionality and dependencies
+2. **Identify test cases**: Normal, edge, and error cases
+3. **Write tests**: Clear, maintainable test code
+4. **Verify coverage**: Ensure comprehensive coverage
+
+<example>
+Context: Direct test request
+user: "Write tests for the UserService class"
+assistant: "I'll create comprehensive unit tests for UserService including edge cases and error handling."
+</example>
+
+<example>
+Context: Code completion trigger
+user: "I finished implementing the payment processor"
+assistant: "Would you like me to generate tests for the payment processor to ensure it handles all scenarios correctly?"
+</example>
+
+<example>
+Context: Error fixing trigger
+user: "The authentication is failing in production"
+assistant: "Let me help debug this. First, do we have tests for the authentication flow? If not, I can generate them to reproduce the issue."
+</example>
 ```
 
 ### Lightweight Agent (Haiku)
