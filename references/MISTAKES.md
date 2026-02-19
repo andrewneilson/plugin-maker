@@ -486,3 +486,291 @@ project/
 ```
 
 Document this in plugin README.
+
+## 21. MCP Configuration Duplication
+
+Don't configure MCP servers in both .mcp.json AND plugin.json.
+
+**Wrong** - Duplicate configuration:
+```
+my-plugin/
+├── .claude-plugin/
+│   └── plugin.json      # Has mcpServers field
+└── .mcp.json            # Also configures servers
+```
+
+**Correct** - Choose one location:
+
+Option 1: Use .mcp.json (recommended for multiple servers):
+```
+my-plugin/
+├── .claude-plugin/
+│   └── plugin.json      # No mcpServers field
+└── .mcp.json            # All MCP config here
+```
+
+Option 2: Use inline (good for single server):
+```json
+{
+  "name": "my-plugin",
+  "mcpServers": {
+    "my-server": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/server.js"
+    }
+  }
+}
+```
+
+## 22. Hardcoded MCP Server Paths
+
+MCP server paths must use ${CLAUDE_PLUGIN_ROOT}.
+
+**Wrong** - Hardcoded path:
+```json
+{
+  "my-server": {
+    "command": "/Users/me/.claude/plugins/my-plugin/servers/server.js"
+  }
+}
+```
+
+**Correct** - Use variable:
+```json
+{
+  "my-server": {
+    "command": "${CLAUDE_PLUGIN_ROOT}/servers/server.js"
+  }
+}
+```
+
+## 23. Missing MCP Tool Naming Convention
+
+When referencing MCP tools, use the full prefixed name.
+
+**Wrong** - Tool short name:
+```yaml
+---
+description: Create task
+allowed-tools: ["asana_create_task"]
+---
+```
+
+**Correct** - Full MCP tool name:
+```yaml
+---
+description: Create task
+allowed-tools: ["mcp__plugin_asana_asana__asana_create_task"]
+---
+```
+
+Discover tool names with `/mcp` command.
+
+## 24. MCP Server Command Without Node Buffer
+
+Python MCP servers need PYTHONUNBUFFERED.
+
+**Wrong** - No unbuffered flag:
+```json
+{
+  "my-python-server": {
+    "command": "python",
+    "args": ["-m", "my_mcp_server"]
+  }
+}
+```
+
+**Correct** - Set PYTHONUNBUFFERED:
+```json
+{
+  "my-python-server": {
+    "command": "python",
+    "args": ["-m", "my_mcp_server"],
+    "env": {
+      "PYTHONUNBUFFERED": "1"
+    }
+  }
+}
+```
+
+## 25. Using HTTP Instead of HTTPS for MCP
+
+Network-based MCP servers must use secure connections.
+
+**Wrong** - Insecure HTTP:
+```json
+{
+  "api": {
+    "type": "http",
+    "url": "http://api.example.com/mcp"
+  }
+}
+```
+
+**Correct** - Secure HTTPS:
+```json
+{
+  "api": {
+    "type": "https",
+    "url": "https://api.example.com/mcp"
+  }
+}
+```
+
+Same for WebSocket: use `wss://` not `ws://`.
+
+## 26. MCP Credentials in Configuration
+
+Never hardcode credentials in MCP config.
+
+**Wrong** - Hardcoded token:
+```json
+{
+  "api": {
+    "type": "sse",
+    "url": "https://mcp.example.com/sse",
+    "headers": {
+      "Authorization": "Bearer abc123secret456"
+    }
+  }
+}
+```
+
+**Correct** - Use environment variable:
+```json
+{
+  "api": {
+    "type": "sse",
+    "url": "https://mcp.example.com/sse",
+    "headers": {
+      "Authorization": "Bearer ${API_TOKEN}"
+    }
+  }
+}
+```
+
+Document required environment variables in README.
+
+## 27. Hook Matchers Without Proper Regex
+
+Hook matchers should use valid regex patterns.
+
+**Wrong** - Invalid regex:
+```json
+{
+  "PreToolUse": [{
+    "matcher": "Write Edit",  // Space means nothing in regex
+    "hooks": [{"type": "prompt", "prompt": "..."}]
+  }]
+}
+```
+
+**Correct** - Proper regex:
+```json
+{
+  "PreToolUse": [{
+    "matcher": "Write|Edit",  // Pipe means OR in regex
+    "hooks": [{"type": "prompt", "prompt": "..."}]
+  }]
+}
+```
+
+Common patterns:
+- `"Write|Edit"` - Match Write OR Edit
+- `"mcp__.*__delete.*"` - Match any MCP delete tools
+- `"*"` - Match all tools
+
+## 28. Command Instructions TO User Instead of FOR Claude
+
+Commands should tell Claude what to do, not tell the user what to do.
+
+**Wrong** - Instructions TO user:
+```yaml
+---
+description: Run tests
+---
+
+# Test Command
+
+Please run the following command:
+```bash
+npm test
+```
+
+Review the output and fix any failures.
+```
+
+**Correct** - Instructions FOR Claude:
+```yaml
+---
+description: Run tests and report results
+---
+
+# Test Command
+
+When the user runs this command:
+
+1. Execute tests using Bash: `npm test`
+2. Parse test output
+3. Report results to user:
+   - Number passed/failed
+   - Details of failures
+   - Suggestions for fixes
+```
+
+## 29. Missing Timeout in Long-Running Hooks
+
+Command hooks need appropriate timeouts for their workload.
+
+**Wrong** - Default timeout for slow operation:
+```json
+{
+  "SessionStart": [{
+    "hooks": [{
+      "type": "command",
+      "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/slow-setup.sh"
+      // No timeout specified, uses default 60s
+    }]
+  }]
+}
+```
+
+**Correct** - Explicit timeout:
+```json
+{
+  "SessionStart": [{
+    "hooks": [{
+      "type": "command",
+      "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/slow-setup.sh",
+      "timeout": 120  // Longer timeout for slow operation
+    }]
+  }]
+}
+```
+
+Recommended timeouts:
+- Quick checks: 5-10s
+- File operations: 10-30s
+- Build/test operations: 60-120s
+- Network requests: 30-60s
+
+## 30. Agent Triggering Examples Missing Context
+
+Agent triggering examples need Context field.
+
+**Wrong** - No context:
+```yaml
+---
+description: Examples: <example>user: "review my code"\nassistant: "I'll review it"</example>
+---
+```
+
+**Correct** - With context:
+```yaml
+---
+description: Examples: <example>Context: User wants code review\nuser: "review my code"\nassistant: "I'll use code-reviewer agent for comprehensive analysis"</example>
+---
+```
+
+Include both proactive and reactive examples:
+- Proactive: Claude suggests the agent
+- Reactive: User directly requests agent's capability

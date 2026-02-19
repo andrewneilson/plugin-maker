@@ -65,6 +65,8 @@ Optional author field for attribution:
 }
 ```
 
+**Version format**: Use semantic versioning (MAJOR.MINOR.PATCH). See [Manifest Reference](references/MANIFEST.md) for semantic versioning, component path customization, and metadata fields.
+
 ## Creating a Plugin
 
 ### Step 1: Create Directory Structure
@@ -256,7 +258,9 @@ Integrate Model Context Protocol servers for additional tools:
 }
 ```
 
-**Server types:** stdio, SSE, HTTP, WebSocket. Tools appear as `mcp__plugin-name__tool-name`.
+**Server types:** stdio (local), SSE (hosted/OAuth), HTTP (REST), WebSocket (real-time). Tools appear as `mcp__plugin_<plugin-name>_<server-name>__<tool-name>`.
+
+See [MCP Integration Guide](references/MCP-INTEGRATION.md) for server types, tool naming, and authentication patterns.
 
 ### Plugin Settings (`.claude/plugin-name.local.md`)
 
@@ -380,9 +384,11 @@ ls .claude/plugins/*/
 
 ## Additional Resources
 
-- [Hook Development Guide](references/HOOKS.md) - Events, prompt/command hooks, security patterns
+- [Hook Development Guide](references/HOOKS.md) - Events, prompt/command hooks, 7 proven patterns
+- [MCP Integration Guide](references/MCP-INTEGRATION.md) - Server types, tool naming, authentication
+- [Manifest Reference](references/MANIFEST.md) - plugin.json fields, semantic versioning, component paths
 - [Plugin Settings Guide](references/PLUGIN-SETTINGS.md) - Configuration files with YAML frontmatter
-- [Validation checklists](references/VALIDATION.md)
+- [Validation checklists](references/VALIDATION.md) - Frontmatter reference, hook schema validation
+- [Common mistakes](references/MISTAKES.md) - 30 common issues with MCP and hooks
 - [Complete plugin examples](references/EXAMPLES.md)
-- [Common mistakes](references/MISTAKES.md)
-- [Copy-paste templates](references/TEMPLATES.md)
+- [Copy-paste templates](references/TEMPLATES.md) - Commands, agents, hooks with patterns
