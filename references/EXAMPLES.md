@@ -23,11 +23,7 @@ minimal-plugin/
 ```json
 {
   "name": "minimal-plugin",
-  "description": "A minimal plugin demonstrating basic structure",
-  "author": {
-    "name": "Your Name",
-    "email": "you@example.com"
-  }
+  "description": "A minimal plugin demonstrating basic structure"
 }
 ```
 
@@ -97,18 +93,14 @@ full-plugin/
     └── pre-analyze.py
 ```
 
-### Files
+### Key Files
 
 **.claude-plugin/plugin.json**:
 ```json
 {
   "name": "full-plugin",
   "version": "1.0.0",
-  "description": "Full-featured plugin with commands, agents, skills, and hooks",
-  "author": {
-    "name": "Your Name",
-    "email": "you@example.com"
-  }
+  "description": "Full-featured plugin with commands, agents, skills, and hooks"
 }
 ```
 
@@ -139,25 +131,11 @@ Present findings as:
 - **Suggestions**: Improvement opportunities
 ```
 
-**commands/help.md**:
-```yaml
----
-description: Get help with the full-plugin
-allowed-tools: ["Read"]
----
-
-# Full Plugin Help
-
-Read the README.md file and present a summary of available commands and features.
-
-Include usage examples for each command.
-```
-
 **agents/code-analyzer.md**:
 ```yaml
 ---
 name: code-analyzer
-description: Use this agent for deep code analysis including pattern detection, complexity assessment, and issue identification. Examples: <example>Context: User wants code reviewed\nuser: "Analyze src/ for issues"\nassistant: "I'll use the code-analyzer agent for deep analysis"</example>
+description: Use this agent for deep code analysis. Examples: <example>Context: User wants code reviewed\nuser: "Analyze src/ for issues"\nassistant: "I'll use the code-analyzer agent for deep analysis"</example>
 model: sonnet
 color: blue
 tools: ["Read", "Grep", "Glob"]
@@ -169,56 +147,17 @@ You are an expert code analyst specializing in pattern detection and quality ass
 
 Perform thorough code analysis including:
 1. Pattern detection (design patterns, anti-patterns)
-2. Complexity assessment (cyclomatic complexity, cognitive complexity)
-3. Issue identification (bugs, security issues, performance problems)
+2. Complexity assessment
+3. Issue identification (bugs, security, performance)
 4. Best practice evaluation
 
 ## Output Format
-
-Return structured findings:
-
-### Patterns Found
-- Pattern name: location and description
 
 ### Issues
 - Severity: description with file:line reference
 
 ### Recommendations
 - Prioritized list of improvements
-```
-
-**skills/analysis-patterns/SKILL.md**:
-```yaml
----
-name: analysis-patterns
-description: Detect and explain common code patterns and anti-patterns. Use when discussing design patterns, refactoring, or code quality.
----
-
-# Analysis Patterns
-
-Guide for detecting and explaining code patterns.
-
-## Design Patterns
-
-| Pattern | Detection Signals |
-|---------|-------------------|
-| Singleton | Private constructor, static instance |
-| Factory | Create methods returning interface types |
-| Observer | Subscribe/notify methods, event handlers |
-| Strategy | Interface with multiple implementations |
-
-## Anti-Patterns
-
-| Anti-Pattern | Detection Signals |
-|--------------|-------------------|
-| God Object | Class with 500+ lines, many responsibilities |
-| Spaghetti | Deep nesting, unclear control flow |
-| Copy-Paste | Duplicate code blocks |
-| Magic Numbers | Hardcoded values without constants |
-
-## Usage
-
-When analyzing code, identify both positive patterns and anti-patterns, providing specific recommendations for improvement.
 ```
 
 **hooks/hooks.json**:
@@ -241,39 +180,11 @@ When analyzing code, identify both positive patterns and anti-patterns, providin
 }
 ```
 
-**hooks/pre-analyze.py**:
-```python
-#!/usr/bin/env python3
-"""Pre-analyze hook that logs file reads for analysis tracking."""
-import json
-import os
-import sys
-from datetime import datetime
-
-def main():
-    # Read hook input from stdin
-    input_data = json.load(sys.stdin)
-
-    tool_name = input_data.get("tool_name", "")
-    tool_input = input_data.get("tool_input", {})
-
-    # Log the file being read (for tracking purposes)
-    if tool_name == "Read":
-        file_path = tool_input.get("file_path", "")
-        log_file = os.path.expanduser("~/.claude/analysis-log.txt")
-        with open(log_file, "a") as f:
-            f.write(f"{datetime.now().isoformat()} - Read: {file_path}\n")
-
-    # Return empty response to allow the tool to proceed
-    print(json.dumps({}))
-
-if __name__ == "__main__":
-    main()
-```
+For hook handler script examples, see [HOOKS.md](HOOKS.md).
 
 ## Plugin with MCP Integration
 
-A plugin that provides an MCP server for additional capabilities.
+A plugin that bundles an MCP server for additional capabilities.
 
 ### Directory Structure
 
@@ -290,18 +201,14 @@ mcp-plugin/
     └── index.js
 ```
 
-### Files
+### Key Files
 
 **.claude-plugin/plugin.json**:
 ```json
 {
   "name": "mcp-plugin",
   "version": "1.0.0",
-  "description": "Plugin demonstrating MCP server integration",
-  "author": {
-    "name": "Your Name",
-    "email": "you@example.com"
-  }
+  "description": "Plugin demonstrating MCP server integration"
 }
 ```
 
@@ -335,49 +242,7 @@ Check the status of the plugin's MCP server.
 3. Report any connection issues
 ```
 
-**mcp-server/package.json**:
-```json
-{
-  "name": "mcp-plugin-server",
-  "version": "1.0.0",
-  "type": "module",
-  "main": "index.js",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
-  }
-}
-```
-
-**README.md**:
-```markdown
-# MCP Plugin
-
-Demonstrates MCP server integration with Claude Code plugins.
-
-## Setup
-
-1. Install dependencies: `cd mcp-server && npm install`
-
-## Development
-
-```bash
-claude --plugin-dir ./mcp-plugin
-```
-
-## Installation
-
-```bash
-cp -r ./mcp-plugin ~/.claude/plugins/
-```
-
-## Commands
-
-- `/mcp-plugin:mcp-status` - Check MCP server status
-
-## MCP Tools
-
-The bundled MCP server provides additional tools that appear in Claude's tool list.
-```
+For MCP configuration details, see [MCP-INTEGRATION.md](MCP-INTEGRATION.md).
 
 ## Plugin with Multiple Commands
 
@@ -402,11 +267,7 @@ git-helpers/
 {
   "name": "git-helpers",
   "version": "1.0.0",
-  "description": "Git workflow helpers for branch management, commit analysis, and PR summaries",
-  "author": {
-    "name": "Your Name",
-    "email": "you@example.com"
-  }
+  "description": "Git workflow helpers for branch management, commit analysis, and PR summaries"
 }
 ```
 
@@ -459,32 +320,9 @@ If $ARGUMENTS specifies a number, show stats for that many days. Default: 30 day
 5. Average commit size
 ```
 
-**commands/pr-summary.md**:
-```yaml
----
-description: Generate a summary of recent pull requests
-argument-hint: [count]
-allowed-tools: ["Bash"]
----
-
-# PR Summary
-
-Generate a summary of recent pull requests using `gh` CLI.
-
-If $ARGUMENTS specifies a count, show that many PRs. Default: 10.
-
-## Information to Include
-
-1. PR title and number
-2. Author
-3. Status (open, merged, closed)
-4. Files changed
-5. Review status
-```
-
 ## Plugin with Prompt-Based Hooks
 
-A plugin demonstrating modern prompt-based hook validation.
+A plugin demonstrating prompt-based hook validation.
 
 ### Directory Structure
 
@@ -496,8 +334,6 @@ security-plugin/
 └── hooks/
     └── hooks.json
 ```
-
-### Files
 
 **.claude-plugin/plugin.json**:
 ```json
@@ -518,17 +354,8 @@ security-plugin/
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Validate file write safety. Check for: path traversal (../), sensitive files (.env, .key, credentials), system paths (/etc, /sys). Return 'approve' for safe operations or 'deny' with reason for unsafe operations.",
+            "prompt": "Validate file write safety. Check for: path traversal, sensitive files (.env, .key), system paths. Return 'approve' or 'deny' with reason.",
             "timeout": 30
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Validate bash command safety. Check for: rm -rf with system paths, curl/wget to unknown domains, sudo commands, chmod 777. Return 'approve' for safe commands or 'deny' with reason for dangerous commands."
           }
         ]
       }
@@ -539,18 +366,7 @@ security-plugin/
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Verify task completion. Check: 1) Were tests run and passing? 2) Was code built successfully? 3) Were user questions answered? Return 'approve' to stop or 'block' with specific reason to continue."
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Check if prompt requires security guidance. If user mentions authentication, authorization, API keys, passwords, or security, return relevant security best practices as systemMessage."
+            "prompt": "Verify task completion: tests run, build succeeded, questions answered. Return 'approve' or 'block' with reason."
           }
         ]
       }
@@ -559,29 +375,7 @@ security-plugin/
 }
 ```
 
-**README.md**:
-```markdown
-# Security Plugin
-
-Automated security validation using AI-powered hooks.
-
-## Features
-
-- **File Write Validation**: Blocks path traversal and sensitive file access
-- **Bash Command Safety**: Validates dangerous shell commands
-- **Completion Verification**: Ensures tests run before stopping
-- **Security Guidance**: Provides context-aware security advice
-
-## Usage
-
-The plugin automatically activates on:
-- File writes and edits
-- Bash commands
-- Task completion
-- User prompts mentioning security topics
-
-No configuration required - hooks use AI reasoning to make decisions.
-```
+For additional hook events and patterns, see [HOOKS.md](HOOKS.md).
 
 ## Plugin with Settings Configuration
 
@@ -599,8 +393,6 @@ configurable-plugin/
     └── validate.sh
 ```
 
-### Files
-
 **.claude-plugin/plugin.json**:
 ```json
 {
@@ -610,20 +402,17 @@ configurable-plugin/
 }
 ```
 
-**.claude/configurable-plugin.local.md** (user creates):
+**.claude/configurable-plugin.local.md** (user creates in project):
 ```markdown
 ---
 enabled: true
 validation_level: strict
-max_file_size: 1000000
 allowed_extensions: [".js", ".ts", ".tsx", ".json"]
-enable_notifications: true
 ---
 
 # Configurable Plugin Settings
 
 This project uses strict validation mode.
-All file writes are validated against security policies.
 ```
 
 **hooks/hooks.json**:
@@ -646,111 +435,28 @@ All file writes are validated against security policies.
 }
 ```
 
-**hooks/validate.sh**:
+**hooks/validate.sh** (abbreviated):
 ```bash
 #!/bin/bash
 set -euo pipefail
 
-# Check for settings file
 STATE_FILE=".claude/configurable-plugin.local.md"
+[[ ! -f "$STATE_FILE" ]] && exit 0
 
-if [[ ! -f "$STATE_FILE" ]]; then
-  # No settings, use defaults
-  exit 0
-fi
-
-# Parse frontmatter
 FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$STATE_FILE")
-
-# Check if enabled
 ENABLED=$(echo "$FRONTMATTER" | grep '^enabled:' | sed 's/enabled: *//')
-if [[ "$ENABLED" != "true" ]]; then
-  exit 0
-fi
+[[ "$ENABLED" != "true" ]] && exit 0
 
-# Read input
 input=$(cat)
 file_path=$(echo "$input" | jq -r '.tool_input.file_path // ""')
-
-# Get validation level
 LEVEL=$(echo "$FRONTMATTER" | grep '^validation_level:' | sed 's/validation_level: *//')
 
-case "$LEVEL" in
-  strict)
-    # Strict: validate extension, size, path
-    EXT="${file_path##*.}"
-    ALLOWED=$(echo "$FRONTMATTER" | grep '^allowed_extensions:')
-
-    if [[ ! "$ALLOWED" =~ ".$EXT" ]]; then
-      echo '{"decision": "deny", "reason": "File extension not allowed in strict mode"}' >&2
-      exit 2
-    fi
-
-    # Check for path traversal
-    if [[ "$file_path" == *".."* ]]; then
-      echo '{"decision": "deny", "reason": "Path traversal detected"}' >&2
-      exit 2
-    fi
-    ;;
-
-  standard)
-    # Standard: basic checks
-    if [[ "$file_path" == *".."* ]]; then
-      echo '{"decision": "deny", "reason": "Path traversal detected"}' >&2
-      exit 2
-    fi
-    ;;
-
-  lenient)
-    # Lenient: minimal checks
-    ;;
-esac
-
-# Allow
-exit 0
+# Validate based on level (strict/standard/lenient)
+if [[ "$file_path" == *".."* ]]; then
+  echo '{"decision": "deny", "reason": "Path traversal detected"}' >&2
+  exit 2
+fi
 ```
 
-**README.md**:
-```markdown
-# Configurable Plugin
-
-Plugin with per-project configuration for flexible validation.
-
-## Configuration
-
-Create `.claude/configurable-plugin.local.md` in your project:
-
-\`\`\`markdown
----
-enabled: true
-validation_level: strict  # strict, standard, or lenient
-max_file_size: 1000000
-allowed_extensions: [".js", ".ts", ".tsx"]
-enable_notifications: true
----
-
-# Plugin Configuration
-\`\`\`
-
-Add to `.gitignore`:
-\`\`\`
-.claude/*.local.md
-\`\`\`
-
-### Validation Levels
-
-- **strict**: Extension whitelist, path validation, size checks
-- **standard**: Path validation only
-- **lenient**: Minimal validation
-
-### Changing Settings
-
-After editing settings:
-1. Save the file
-2. Exit Claude Code
-3. Restart: `claude` or `cc`
-
-## Usage
-
-Once configured, the plugin automatically validates file writes according to your settings.
-```
+For settings file format details, see [PLUGIN-SETTINGS.md](PLUGIN-SETTINGS.md).
+For complete hook handler patterns, see [HOOKS.md](HOOKS.md).

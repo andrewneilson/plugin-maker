@@ -55,45 +55,11 @@ Validate with: `cat .claude-plugin/plugin.json | jq .`
 
 The `name` field must match the plugin directory name.
 
-**Wrong**:
-```
-my-plugin/                    # Directory name
-└── .claude-plugin/
-    └── plugin.json           # Contains "name": "myPlugin"
-```
+**Wrong**: Directory is `my-plugin/` but plugin.json has `"name": "myPlugin"`
 
-**Correct**:
-```
-my-plugin/                    # Directory name
-└── .claude-plugin/
-    └── plugin.json           # Contains "name": "my-plugin"
-```
+**Correct**: Directory is `my-plugin/` and plugin.json has `"name": "my-plugin"`
 
-## 4. Minimal vs Full plugin.json
-
-The `author` field is optional but helpful for attribution.
-
-**Minimal** - Only required fields:
-```json
-{
-  "name": "my-plugin",
-  "description": "My plugin"
-}
-```
-
-**Full** - With optional author:
-```json
-{
-  "name": "my-plugin",
-  "description": "My plugin",
-  "author": {
-    "name": "Your Name",
-    "email": "you@example.com"
-  }
-}
-```
-
-## 5. Wrong Directory Names (Singular vs Plural)
+## 4. Wrong Directory Names (Singular vs Plural)
 
 Component directories must use the correct plural forms.
 
@@ -101,52 +67,31 @@ Component directories must use the correct plural forms.
 ```
 my-plugin/
 ├── command/              # Wrong: should be 'commands'
-│   └── my-command.md
 ├── agent/                # Wrong: should be 'agents'
-│   └── my-agent.md
 └── skill/                # Wrong: should be 'skills'
-    └── my-skill/
-        └── SKILL.md
 ```
 
 **Correct** - Plural names:
 ```
 my-plugin/
 ├── commands/             # Correct: plural
-│   └── my-command.md
 ├── agents/               # Correct: plural
-│   └── my-agent.md
 └── skills/               # Correct: plural
-    └── my-skill/
-        └── SKILL.md
 ```
 
-**Exception**: The `hooks/` directory is conventionally singular.
-
-## 6. Skill Not in Subdirectory
+## 5. Skill Not in Subdirectory
 
 Skills must be in their own subdirectory within `skills/`.
 
-**Wrong** - SKILL.md directly in skills/:
-```
-my-plugin/
-└── skills/
-    └── SKILL.md          # Wrong: needs subdirectory
-```
+**Wrong**: `skills/SKILL.md`
 
-**Correct** - SKILL.md in named subdirectory:
-```
-my-plugin/
-└── skills/
-    └── my-skill/         # Subdirectory with skill name
-        └── SKILL.md      # SKILL.md inside
-```
+**Correct**: `skills/my-skill/SKILL.md`
 
-## 7. Hooks Missing Handler Files
+## 6. Hooks Missing Handler Files
 
-Hooks reference scripts that don't exist.
+Hook commands reference scripts that don't exist.
 
-**Wrong** - Handler doesn't exist:
+**Wrong** - hooks.json references `handler.py` but the file doesn't exist:
 ```json
 {
   "hooks": {
@@ -159,19 +104,12 @@ Hooks reference scripts that don't exist.
   }
 }
 ```
-But `hooks/handler.py` doesn't exist!
 
-**Correct** - Create the handler file:
-```
-my-plugin/
-└── hooks/
-    ├── hooks.json
-    └── handler.py        # Must exist and be executable
-```
+**Fix**: Create the handler file and ensure it's executable.
 
-## 8. Agent Description Without Trigger Examples
+## 7. Agent Description Without Trigger Examples
 
-Agent descriptions should include Examples tags for complex use cases.
+Agent descriptions should include `<example>` tags for better discovery.
 
 **Wrong** - Generic description:
 ```yaml
@@ -181,19 +119,21 @@ description: Analyzes code
 ---
 ```
 
-**Correct** - Description with trigger scenarios and examples:
+**Correct** - With trigger scenarios and examples:
 ```yaml
 ---
 name: code-analyzer
-description: Use this agent for deep code analysis including pattern detection and issue identification. Examples: <example>Context: User wants security review\nuser: "Check auth.js for vulnerabilities"\nassistant: "I'll use code-analyzer for security analysis"</example>
+description: Use this agent for deep code analysis. Examples: <example>Context: User wants security review\nuser: "Check auth.js for vulnerabilities"\nassistant: "I'll use code-analyzer for security analysis"</example>
 ---
 ```
 
-## 9. Command Without $ARGUMENTS Handling
+## 8. Command Without $ARGUMENTS Handling
 
-Commands that accept arguments should document how to use them.
+Commands with `argument-hint` should reference `$ARGUMENTS` in the body and document fallback behavior when no arguments are provided.
 
-**Wrong** - No mention of arguments:
+**Wrong** - Has `argument-hint: [name]` but body never mentions `$ARGUMENTS`.
+
+**Correct**:
 ```yaml
 ---
 description: Greet the user
@@ -202,79 +142,46 @@ argument-hint: [name]
 
 # Greet
 
-Say hello to the user.
+If the user provides a name in $ARGUMENTS, use it. Otherwise, ask for their name.
 ```
 
-**Correct** - Documents argument usage:
-```yaml
----
-description: Greet the user
-argument-hint: [name]
----
+## 9. Hardcoded Paths
 
-# Greet
+Hook commands and MCP server configurations must use `${CLAUDE_PLUGIN_ROOT}`.
 
-Say hello to the user.
-
-If the user provides a name in $ARGUMENTS, use that name in the greeting.
-Otherwise, ask for their name.
-```
-
-## 10. Hardcoded Paths in Hooks
-
-Hook commands must use `${CLAUDE_PLUGIN_ROOT}` variable.
-
-**Wrong** - Hardcoded path:
+**Wrong** - Hardcoded paths:
 ```json
-{
-  "hooks": {
-    "PreToolUse": [{
-      "hooks": [{
-        "type": "command",
-        "command": "python3 /Users/me/.claude/plugins/my-plugin/hooks/handler.py"
-      }]
-    }]
-  }
-}
+"command": "python3 /Users/me/.claude/plugins/my-plugin/hooks/handler.py"
+"command": "/Users/me/.claude/plugins/my-plugin/servers/server.js"
 ```
 
 **Correct** - Use variable:
 ```json
-{
-  "hooks": {
-    "PreToolUse": [{
-      "hooks": [{
-        "type": "command",
-        "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/handler.py"
-      }]
-    }]
-  }
-}
+"command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/handler.py"
+"command": "${CLAUDE_PLUGIN_ROOT}/servers/server.js"
 ```
 
-## 11. Command allowed-tools Wrong Format
+This applies to both hook handler paths and MCP server paths.
 
-Commands use JSON array syntax for allowed-tools, not space-delimited.
+## 10. Tools Field Wrong Format (Commands and Agents)
 
-**Wrong** - Space-delimited (skill format):
+Commands and agents use JSON array syntax, not space-delimited strings.
+
+**Wrong** - Space-delimited:
 ```yaml
----
-description: My command
 allowed-tools: Read Write Bash
----
+tools: Read Write Grep
 ```
 
-**Correct** - JSON array (command format):
+**Correct** - JSON arrays:
 ```yaml
----
-description: My command
 allowed-tools: ["Read", "Write", "Bash"]
----
+tools: ["Read", "Write", "Grep"]
 ```
 
-Note: Skills use space-delimited (`allowed-tools: Read Write Bash`), but commands use JSON arrays.
+Note: Skills use space-delimited (`allowed-tools: Read Write Bash`), but commands and agents use JSON arrays.
 
-## 12. Missing YAML Frontmatter in Commands/Agents
+## 11. Missing YAML Frontmatter in Commands/Agents
 
 Commands and agents require YAML frontmatter.
 
@@ -296,33 +203,11 @@ description: What this command does
 Instructions here...
 ```
 
-## 13. Agent tools Field Wrong Type
+## 12. Hooks JSON Missing Wrapper Structure
 
-Agent tools should be an array, not a space-delimited string.
+Plugin hooks.json requires a `"hooks"` wrapper key with arrays at each level.
 
-**Wrong**:
-```yaml
----
-name: my-agent
-description: My agent
-tools: Read Write Grep
----
-```
-
-**Correct**:
-```yaml
----
-name: my-agent
-description: My agent
-tools: ["Read", "Write", "Grep"]
----
-```
-
-## 14. Hooks JSON Missing Wrapper Structure
-
-The hooks.json structure requires specific nesting.
-
-**Wrong** - Missing wrapper:
+**Wrong** - Direct events (no wrapper):
 ```json
 {
   "PreToolUse": {
@@ -350,402 +235,101 @@ The hooks.json structure requires specific nesting.
 }
 ```
 
-## 15. README Not at Plugin Root
+Events map to arrays of matcher groups, each containing an array of hooks.
+
+## 13. README Not at Plugin Root
 
 README.md should be at the plugin root, not inside .claude-plugin.
 
-**Wrong**:
-```
-my-plugin/
-└── .claude-plugin/
-    ├── plugin.json
-    └── README.md         # Wrong location
-```
+**Wrong**: `my-plugin/.claude-plugin/README.md`
 
-**Correct**:
-```
-my-plugin/
-├── .claude-plugin/
-│   └── plugin.json
-└── README.md             # At plugin root
-```
+**Correct**: `my-plugin/README.md`
 
-## 16. Using Command Hooks Instead of Prompt Hooks
+## 14. Using Command Hooks Instead of Prompt Hooks
 
-Prompt-based hooks are simpler and more flexible for most use cases.
+Prompt-based hooks are simpler for most validation logic. Reserve command hooks for deterministic checks.
 
-**Wrong** - Unnecessary bash script:
+**Wrong** - Complex bash script for a decision Claude can reason about.
+
+**Correct** - Prompt-based hook:
 ```json
 {
-  "hooks": {
-    "Stop": [{
-      "matcher": "*",
-      "hooks": [{
-        "type": "command",
-        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-completion.sh"
-      }]
-    }]
-  }
+  "type": "prompt",
+  "prompt": "Verify task completion: tests run, build succeeded. Return 'approve' or 'block'."
 }
 ```
 
-Then create complex bash script to check completion.
+## 15. Not Using ${CLAUDE_PLUGIN_ROOT} in Settings Paths
 
-**Correct** - Use prompt-based hook:
-```json
-{
-  "hooks": {
-    "Stop": [{
-      "matcher": "*",
-      "hooks": [{
-        "type": "prompt",
-        "prompt": "Verify task completion: tests run, build succeeded, questions answered. Return 'approve' or 'block'."
-      }]
-    }]
-  }
-}
-```
+Settings file paths should be relative to the project, not the plugin.
 
-Reserve command hooks for deterministic checks or when bash is truly needed.
+**Wrong**: `STATE_FILE="${CLAUDE_PLUGIN_ROOT}/.claude/my-plugin.local.md"`
 
-## 17. Missing Hooks Wrapper in plugin.json
-
-Plugin hooks.json requires a wrapper structure.
-
-**Wrong** - Direct events (settings format):
-```json
-{
-  "PreToolUse": [{
-    "matcher": "*",
-    "hooks": [{"type": "prompt", "prompt": "..."}]
-  }]
-}
-```
-
-**Correct** - Wrapped in "hooks" key (plugin format):
-```json
-{
-  "hooks": {
-    "PreToolUse": [{
-      "matcher": "*",
-      "hooks": [{"type": "prompt", "prompt": "..."}]
-    }]
-  }
-}
-```
-
-## 18. Not Using ${CLAUDE_PLUGIN_ROOT} in Settings Paths
-
-Settings file paths should be relative to project, not plugin.
-
-**Wrong** - Using CLAUDE_PLUGIN_ROOT for settings:
-```bash
-STATE_FILE="${CLAUDE_PLUGIN_ROOT}/.claude/my-plugin.local.md"
-```
-
-**Correct** - Relative to project directory:
-```bash
-STATE_FILE=".claude/my-plugin.local.md"
-```
+**Correct**: `STATE_FILE=".claude/my-plugin.local.md"`
 
 Use `${CLAUDE_PLUGIN_ROOT}` only for plugin-internal files (hook scripts, etc.).
 
-## 19. Forgetting Restart Requirement for Hooks
+## 16. Forgetting Restart Requirement for Hooks
 
-Hooks load at session start and cannot be hot-swapped.
+Hooks load at session start and cannot be hot-swapped. After editing hooks.json, exit and restart Claude Code for changes to take effect.
 
-**Wrong documentation**:
-```markdown
-Edit hooks/hooks.json to change behavior.
-```
-
-**Correct documentation**:
-```markdown
-Edit hooks/hooks.json to change behavior.
-After editing, restart Claude Code:
-1. Exit Claude Code
-2. Run `claude` again
-3. New hooks will be loaded
-```
-
-## 20. Settings Files Not in .gitignore
+## 17. Settings Files Not in .gitignore
 
 Settings files are user-local and should not be committed.
 
-**Wrong** - No gitignore:
-```
-project/
-└── .claude/
-    └── my-plugin.local.md  # Gets committed!
-```
-
-**Correct** - Add to .gitignore:
 ```gitignore
 .claude/*.local.md
 .claude/*.local.json
 ```
 
-Document this in plugin README.
+## 18. MCP Configuration Duplication
 
-## 21. MCP Configuration Duplication
+Don't configure MCP servers in both `.mcp.json` AND `plugin.json`. Choose one location:
 
-Don't configure MCP servers in both .mcp.json AND plugin.json.
+- `.mcp.json`: Recommended for multiple servers
+- `plugin.json` `mcpServers` field: Good for a single server
 
-**Wrong** - Duplicate configuration:
-```
-my-plugin/
-├── .claude-plugin/
-│   └── plugin.json      # Has mcpServers field
-└── .mcp.json            # Also configures servers
-```
+## 19. Missing MCP Tool Naming Convention
 
-**Correct** - Choose one location:
+MCP tools use the full prefixed name: `mcp__plugin_<plugin-name>_<server-name>__<tool-name>`
 
-Option 1: Use .mcp.json (recommended for multiple servers):
-```
-my-plugin/
-├── .claude-plugin/
-│   └── plugin.json      # No mcpServers field
-└── .mcp.json            # All MCP config here
-```
+**Wrong**: `allowed-tools: ["asana_create_task"]`
 
-Option 2: Use inline (good for single server):
-```json
-{
-  "name": "my-plugin",
-  "mcpServers": {
-    "my-server": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/server.js"
-    }
-  }
-}
-```
+**Correct**: `allowed-tools: ["mcp__plugin_asana_asana__asana_create_task"]`
 
-## 22. Hardcoded MCP Server Paths
+Discover tool names with the `/mcp` command.
 
-MCP server paths must use ${CLAUDE_PLUGIN_ROOT}.
+## 20. MCP Credentials in Configuration
 
-**Wrong** - Hardcoded path:
-```json
-{
-  "my-server": {
-    "command": "/Users/me/.claude/plugins/my-plugin/servers/server.js"
-  }
-}
-```
+Never hardcode credentials in MCP config. Use environment variables.
 
-**Correct** - Use variable:
-```json
-{
-  "my-server": {
-    "command": "${CLAUDE_PLUGIN_ROOT}/servers/server.js"
-  }
-}
-```
+**Wrong**: `"Authorization": "Bearer abc123secret456"`
 
-## 23. Missing MCP Tool Naming Convention
-
-When referencing MCP tools, use the full prefixed name.
-
-**Wrong** - Tool short name:
-```yaml
----
-description: Create task
-allowed-tools: ["asana_create_task"]
----
-```
-
-**Correct** - Full MCP tool name:
-```yaml
----
-description: Create task
-allowed-tools: ["mcp__plugin_asana_asana__asana_create_task"]
----
-```
-
-Discover tool names with `/mcp` command.
-
-## 24. MCP Server Command Without Node Buffer
-
-Python MCP servers need PYTHONUNBUFFERED.
-
-**Wrong** - No unbuffered flag:
-```json
-{
-  "my-python-server": {
-    "command": "python",
-    "args": ["-m", "my_mcp_server"]
-  }
-}
-```
-
-**Correct** - Set PYTHONUNBUFFERED:
-```json
-{
-  "my-python-server": {
-    "command": "python",
-    "args": ["-m", "my_mcp_server"],
-    "env": {
-      "PYTHONUNBUFFERED": "1"
-    }
-  }
-}
-```
-
-## 25. Using HTTP Instead of HTTPS for MCP
-
-Network-based MCP servers must use secure connections.
-
-**Wrong** - Insecure HTTP:
-```json
-{
-  "api": {
-    "type": "http",
-    "url": "http://api.example.com/mcp"
-  }
-}
-```
-
-**Correct** - Secure HTTPS:
-```json
-{
-  "api": {
-    "type": "https",
-    "url": "https://api.example.com/mcp"
-  }
-}
-```
-
-Same for WebSocket: use `wss://` not `ws://`.
-
-## 26. MCP Credentials in Configuration
-
-Never hardcode credentials in MCP config.
-
-**Wrong** - Hardcoded token:
-```json
-{
-  "api": {
-    "type": "sse",
-    "url": "https://mcp.example.com/sse",
-    "headers": {
-      "Authorization": "Bearer abc123secret456"
-    }
-  }
-}
-```
-
-**Correct** - Use environment variable:
-```json
-{
-  "api": {
-    "type": "sse",
-    "url": "https://mcp.example.com/sse",
-    "headers": {
-      "Authorization": "Bearer ${API_TOKEN}"
-    }
-  }
-}
-```
+**Correct**: `"Authorization": "Bearer ${API_TOKEN}"`
 
 Document required environment variables in README.
 
-## 27. Hook Matchers Without Proper Regex
+## 21. Hook Matchers Without Proper Regex
 
-Hook matchers should use valid regex patterns.
+Hook matchers use regex patterns.
 
-**Wrong** - Invalid regex:
-```json
-{
-  "PreToolUse": [{
-    "matcher": "Write Edit",  // Space means nothing in regex
-    "hooks": [{"type": "prompt", "prompt": "..."}]
-  }]
-}
-```
+**Wrong**: `"matcher": "Write Edit"` (space has no special meaning in regex)
 
-**Correct** - Proper regex:
-```json
-{
-  "PreToolUse": [{
-    "matcher": "Write|Edit",  // Pipe means OR in regex
-    "hooks": [{"type": "prompt", "prompt": "..."}]
-  }]
-}
-```
+**Correct**: `"matcher": "Write|Edit"` (pipe means OR)
 
-Common patterns:
-- `"Write|Edit"` - Match Write OR Edit
-- `"mcp__.*__delete.*"` - Match any MCP delete tools
-- `"*"` - Match all tools
+Common patterns: `"Write|Edit"`, `"mcp__.*__delete.*"`, `"*"` (match all).
 
-## 28. Command Instructions TO User Instead of FOR Claude
+## 22. Command Instructions TO User Instead of FOR Claude
 
-Commands should tell Claude what to do, not tell the user what to do.
+Commands should tell Claude what to do, not tell the user what to do. See [TEMPLATES.md](TEMPLATES.md) for detailed examples.
 
-**Wrong** - Instructions TO user:
-```yaml
----
-description: Run tests
----
+**Wrong**: "Please run `npm test` and review the output."
 
-# Test Command
+**Correct**: "Execute tests using Bash: `npm test`. Parse output. Report results to user."
 
-Please run the following command:
-```bash
-npm test
-```
+## 23. Missing Timeout in Long-Running Hooks
 
-Review the output and fix any failures.
-```
-
-**Correct** - Instructions FOR Claude:
-```yaml
----
-description: Run tests and report results
----
-
-# Test Command
-
-When the user runs this command:
-
-1. Execute tests using Bash: `npm test`
-2. Parse test output
-3. Report results to user:
-   - Number passed/failed
-   - Details of failures
-   - Suggestions for fixes
-```
-
-## 29. Missing Timeout in Long-Running Hooks
-
-Command hooks need appropriate timeouts for their workload.
-
-**Wrong** - Default timeout for slow operation:
-```json
-{
-  "SessionStart": [{
-    "hooks": [{
-      "type": "command",
-      "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/slow-setup.sh"
-      // No timeout specified, uses default 60s
-    }]
-  }]
-}
-```
-
-**Correct** - Explicit timeout:
-```json
-{
-  "SessionStart": [{
-    "hooks": [{
-      "type": "command",
-      "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/slow-setup.sh",
-      "timeout": 120  // Longer timeout for slow operation
-    }]
-  }]
-}
-```
+Command hooks need appropriate timeouts.
 
 Recommended timeouts:
 - Quick checks: 5-10s
@@ -753,24 +337,12 @@ Recommended timeouts:
 - Build/test operations: 60-120s
 - Network requests: 30-60s
 
-## 30. Agent Triggering Examples Missing Context
+## 24. Agent Triggering Examples Missing Context
 
-Agent triggering examples need Context field.
+Agent `<example>` tags need a Context field.
 
-**Wrong** - No context:
-```yaml
----
-description: Examples: <example>user: "review my code"\nassistant: "I'll review it"</example>
----
-```
+**Wrong**: `<example>user: "review my code"\nassistant: "I'll review it"</example>`
 
-**Correct** - With context:
-```yaml
----
-description: Examples: <example>Context: User wants code review\nuser: "review my code"\nassistant: "I'll use code-reviewer agent for comprehensive analysis"</example>
----
-```
+**Correct**: `<example>Context: User wants code review\nuser: "review my code"\nassistant: "I'll use code-reviewer for analysis"</example>`
 
-Include both proactive and reactive examples:
-- Proactive: Claude suggests the agent
-- Reactive: User directly requests agent's capability
+Include both proactive and reactive examples.
